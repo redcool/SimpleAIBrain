@@ -15,7 +15,8 @@ export interface BrainConfig {
     enabled?: boolean;
     drainIntervalMs?: number;
     reconcileIntervalMs?: number;
-    watch?: { claude?: string | null; codex?: string | null };
+    dshIdleMs?: number;
+    watch?: { claude?: string | null; codex?: string | null; dsh?: string | null };
   };
 }
 

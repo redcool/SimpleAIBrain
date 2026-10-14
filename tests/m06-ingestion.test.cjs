@@ -12,7 +12,7 @@ async function mk(t, extra) {
   const mod = await import('../dist/index.js');
   const store = new mod.FileStore(path.join(dataDir, 'memory'));
   await store.init();
-  const worker = new mod.IngestWorker(Object.assign({ dataDir, store, logger: function () {}, watch: { claude: null, codex: null } }, extra || {}));
+  const worker = new mod.IngestWorker(Object.assign({ dataDir, store, logger: function () {}, watch: { claude: null, codex: null, dsh: null } }, extra || {}));
   if (t && t.after) t.after(async () => { worker.stop(); await fsp.rm(root, { recursive: true, force: true }); });
   return { mod, store, worker, dataDir, root };
 }
@@ -100,7 +100,7 @@ test('spool drain: hook note replayed and removed; re-drain adds nothing', async
 
 test('reconcile: watch dir submitted; manifest row deleted -> resubmitted', async (t) => {
   const { mod, store, dataDir, root } = await mk(t);
-  const worker = new mod.IngestWorker({ dataDir, store, logger: function () {}, watch: { claude: path.join(root, 'watch'), codex: null } });
+  const worker = new mod.IngestWorker({ dataDir, store, logger: function () {}, watch: { claude: path.join(root, 'watch'), codex: null, dsh: null } });
   const proj = path.join(root, 'watch', 'proj1');
   await fsp.mkdir(proj, { recursive: true });
   const f1 = path.join(proj, 'uuid-1111.jsonl');

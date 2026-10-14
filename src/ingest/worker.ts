@@ -6,12 +6,15 @@ import type { MemoryStore } from '../store/types.js';
 import type { Identity } from '../types.js';
 import { parseIdentityId } from '../identity/identity.js';
 import { redactText } from './redact.js';
+import { decodeDshArtifact, parseDshJsonlText } from './dsh.js';
 import { ensureDir, nowISO } from '../util/fsutil.js';
 
 /** M06 §5:parser 层。每 harness 一个,钉版本;格式漂移 → 拒绝并告警,不猜。 */
 export interface Parser {
   version: number;
   parse(raw: string): string;
+  /** 二进制 artifact(如 DSH 的 zstd 分帧 session 文件);提供时 transcript_path 以 Buffer 进入 */
+  parseBuffer?(buf: Buffer): string;
 }
 
 function extractClaudeishText(content: unknown): string {
@@ -53,6 +56,12 @@ export const PARSERS: Record<string, Parser> = {
   'claude-jsonl': makeJsonlParser('claude-jsonl'),
   'codex-jsonl': makeJsonlParser('codex-jsonl'),
   'digest-md': { version: 1, parse: (raw) => String(raw ?? '') },
+  // DSH session.vN.jsonl.zstd(分帧 zstd;v1 钉 v3 行形)
+  'dsh-jsonl': {
+    version: 1,
+    parse: (raw) => parseDshJsonlText(String(raw ?? '')),
+    parseBuffer: (buf) => parseDshJsonlText(decodeDshArtifact(buf)),
+  },
 };
 
 export function sha256hex(s: string): string {
@@ -74,10 +83,11 @@ export interface IngestOptions {
   store: MemoryStore;
   logger?: (msg: string) => void;
   maxParamChars?: number;                       // 默认 2048(M06 §6)
-  watch?: { claude?: string | null; codex?: string | null };   // 覆盖 transcript 对账目录;null 关闭该源
+  watch?: { claude?: string | null; codex?: string | null; dsh?: string | null };   // 覆盖 transcript 对账目录;null 关闭该源
   drainIntervalMs?: number;                     // 默认 30s
   reconcileIntervalMs?: number;                 // 默认 10min
   watchEnabled?: boolean;
+  dshIdleMs?: number;                           // DSH 活跃 session 静默阈值,默认 10min(防追加中反复重摄)
 }
 
 interface Manifest {
@@ -91,6 +101,13 @@ const SUBMIT_CAP_PER_CYCLE = 50;
 function safeParseIdentity(s: string | null | undefined): Identity | null {
   if (!s) return null;
   try { return parseIdentityId(s); } catch { return null; }
+}
+
+/** DSH 数据根(M06 §2):$DSH_HOME → ~/.dsh,与 @deepseek-ai/dsh-home-paths 同优先级 */
+export function dshHome(): string {
+  const env = process.env.DSH_HOME;
+  if (env && env.trim()) return path.resolve(env.trim());
+  return path.join(os.homedir(), '.dsh');
 }
 
 /**
@@ -142,11 +159,12 @@ export class IngestWorker {
     const parser = PARSERS[evt.harness];
     if (!parser) return { ok: false, error: 'unknown harness: ' + String(evt.harness) + ' (known: ' + Object.keys(PARSERS).join('/') + ')' };
     let raw = '';
+    let rawBuf: Buffer | null = null;
     try {
       if (evt.content !== undefined && evt.content !== null && String(evt.content).length > 0) {
         raw = String(evt.content);
       } else if (evt.transcript_path) {
-        raw = await fs.readFile(evt.transcript_path, 'utf8');   // 同机只传路径(M06 §4)
+        rawBuf = await fs.readFile(evt.transcript_path);        // 同机只传路径(M06 §4);二进制(zstd)安全
       } else {
         return { ok: false, error: 'content or transcript_path required' };
       }
@@ -155,7 +173,7 @@ export class IngestWorker {
     }
     let text: string;
     try {
-      text = parser.parse(raw);
+      text = rawBuf !== null && parser.parseBuffer ? parser.parseBuffer(rawBuf) : parser.parse(rawBuf !== null ? rawBuf.toString('utf8') : raw);
     } catch (e) {
       this.opts.logger?.('[ai-brain] ingest parse failed (' + evt.harness + ' ' + session_id + '): ' + (e instanceof Error ? e.message : String(e)));
       return { ok: false, error: e instanceof Error ? e.message : String(e) };
@@ -208,21 +226,28 @@ export class IngestWorker {
     if (this.opts.watchEnabled === false) return 0;
     this.manifest = null;                       // 不信内存缓存(M06 §8:手工删行 → 补交)
     const home = os.homedir();
-    const dirs: { harness: string; dir: string }[] = [];
+    const dirs: { harness: string; dir: string; zstd?: boolean; idleMs?: number }[] = [];
     const w = this.opts.watch || {};
     const claudeDir = w.claude === undefined ? path.join(home, '.claude', 'projects') : w.claude;
     const codexDir = w.codex === undefined ? path.join(home, '.codex', 'sessions') : w.codex;
+    const dshDir = w.dsh === undefined ? path.join(dshHome(), 'sessions') : w.dsh;
     if (claudeDir) dirs.push({ harness: 'claude-jsonl', dir: claudeDir });
     if (codexDir) dirs.push({ harness: 'codex-jsonl', dir: codexDir });
+    if (dshDir) dirs.push({ harness: 'dsh-jsonl', dir: dshDir, zstd: true, idleMs: this.opts.dshIdleMs ?? 600_000 });
     let submitted = 0;
     for (const d of dirs) {
-      const files = await this.walkJsonl(d.dir);
+      const files = await this.walkJsonl(d.dir, d.zstd === true);
       for (const f of files) {
         if (submitted >= SUBMIT_CAP_PER_CYCLE) return submitted;
-        const session_id = path.basename(f).replace(/\.jsonl$/i, '');
-        let raw: string;
-        try { raw = await fs.readFile(f, 'utf8'); } catch { continue; }
-        const hash = sha256hex(raw);
+        if (d.idleMs) {
+          // DSH 活跃闸门:追加中的 session 不摄(防反复全文重摄);静默超阈值才提交
+          try { const st = await fs.stat(f); if (Date.now() - st.mtimeMs < d.idleMs) continue; } catch { continue; }
+        }
+        // DSH:session 目录名即 id;claude/codex:文件名去 .jsonl
+        const session_id = d.zstd ? path.basename(path.dirname(f)) : path.basename(f).replace(/\.jsonl$/i, '');
+        let raw: Buffer;
+        try { raw = await fs.readFile(f); } catch { continue; }
+        const hash = crypto.createHash('sha256').update(raw).digest('hex');
         const manifest = await this.loadManifest();
         const seen = manifest.sessions[session_id];
         if (seen && seen.hash === hash) continue;
@@ -233,7 +258,7 @@ export class IngestWorker {
     return submitted;
   }
 
-  private async walkJsonl(dir: string): Promise<string[]> {
+  private async walkJsonl(dir: string, zstd = false): Promise<string[]> {
     const out: string[] = [];
     const walk = async (d: string, depth: number): Promise<void> => {
       if (depth > 4 || out.length >= WALK_MAX_FILES) return;
@@ -242,7 +267,8 @@ export class IngestWorker {
       for (const e of entries) {
         if (out.length >= WALK_MAX_FILES) return;
         const p = path.join(d, e);
-        if (e.endsWith('.jsonl')) { out.push(p); continue; }
+        const isArtifact = e.endsWith('.jsonl') || (zstd && /\.jsonl\.zstd$/.test(e));
+        if (isArtifact) { out.push(p); continue; }
         let st;
         try { st = await fs.stat(p); } catch { continue; }
         if (st.isDirectory()) await walk(p, depth + 1);

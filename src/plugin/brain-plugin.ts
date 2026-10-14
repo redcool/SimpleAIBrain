@@ -65,8 +65,8 @@ export function createBrainPlugin(): BrainPlugin {
       }
       // M06:摄入 worker(POST 语义 + spool 排空 + transcript 对账;ingest.enabled=false 关闭)
       const ingestCfg = (ctx.brainConfig.ingest || {}) as {
-        enabled?: boolean; drainIntervalMs?: number; reconcileIntervalMs?: number;
-        watch?: { claude?: string | null; codex?: string | null };
+        enabled?: boolean; drainIntervalMs?: number; reconcileIntervalMs?: number; dshIdleMs?: number;
+        watch?: { claude?: string | null; codex?: string | null; dsh?: string | null };
       };
       if (ingestCfg.enabled !== false) {
         state.ingestWorker = new IngestWorker({
@@ -77,6 +77,7 @@ export function createBrainPlugin(): BrainPlugin {
           watch: ingestCfg.watch,
           drainIntervalMs: ingestCfg.drainIntervalMs,
           reconcileIntervalMs: ingestCfg.reconcileIntervalMs,
+          dshIdleMs: ingestCfg.dshIdleMs,
         });
         state.ingestWorker.start();
       }

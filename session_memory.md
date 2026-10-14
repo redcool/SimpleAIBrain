@@ -71,6 +71,13 @@ SimpleAIBrain = simpleMCPServer 的记忆插件包(进程内插件,由 ai_brain_
 - 蒸馏幂等 = L2 已被任一 L3 引用即跳过;归并幂等 = L1 被 L2 引用即"已归并";L1 永远保留作证据。
 - 插件:init 挂 24h 定时器(unref,schedule=off 关);POST /brain/consolidate 手动触发;run 结束 gitCommitIfRepo(data/,消息含 run_id 与计数)。
 
+### D12. DSH 通道接入决策(2026-10-14,v1 后增补)
+- 用户实况:主力 harness = DSH(Codex 也跑在 DSH 内)→ M06 矩阵的 DSH 行才是真正吃到的摄入路径;Claude/Codex CLI hook 样例保留但不急。
+- **零补丁**:DSH 会话 = 分帧追加 zstd(session.v3.jsonl.zstd,~/.dsh 即 $DSH_HOME);node:zlib 内置 zstdDecompressSync 解单帧,scanZstdFrames 照 zstd 帧结构走(帧头 descriptor/块头 walk,对齐 dsh-session-persistence-jsonl),torn 尾帧跳过 → brain watcher 直接对账,不改 DSH node_modules(避免重打补丁负担)。
+- **空闲闸门** dshIdleMs=10min:DSH session 追加式写入,文件 hash 随新帧变化;只摄 mtime 静默的文件,活跃会话不反复全文重摄;hash 变化 → 静默后重摄(增量以整文件重读,幂等键 session_id+hash)。
+- session_id = session 目录名;数据根 dshHome():$DSH_HOME → ~/.dsh;默认开启,首轮回填历史(上限 50/轮,只回填已静默的)。
+- Parser.parseBuffer 通道:transcript_path 以 Buffer 进 parser(文本 parser 走 toString,dsh 走解码);真实文件验证:1013 帧/889 万字符全解,v3 行形 {type,seq,time,data}。
+
 ### D11. M10/M11 强制项实现决策(2026-10-14)
 - M10 基础项:stats 扩至 scopes 分布 + recall_7d(queries/hits,recall-log 聚合,坏行跳过)+ consolidation.last_run;巩固 run 末追加 '[ai-brain] review summary: needs_review=N quarantined=M' 日志行——无出口的队列等于不存在。
 - 自指排除靠 M02 的 SKIP_DIRS('recall-log'/'L0-log'/'_spool'/'_quarantine'/'_identity'),测试以"塞伪条目文件 → stats 不变"钉死。

@@ -16,7 +16,7 @@
 | Codex | 12 事件(对齐 Claude);[hooks 文档](https://learn.chatgpt.com/docs/hooks);配置 ~/.codex/hooks.json 或 config.toml [hooks] | stdin JSON 含 session_id;transcript 于 ~/.codex/sessions/(装机核实) | 默认 1s / 上限 3s;支持后台 hook | ✅ |
 | opencode | 插件 event 总线 session.idle;[插件文档](https://opencode.ai/docs/plugins/) | client SDK 可拉全文 | — | v2 |
 | Cursor | hooks.json:stop 等;[hooks 文档](https://cursor.com/docs/agent/hooks) | 全文不外露(内部 SQLite) | — | v2,降级用工具流水 |
-| DSH | 内部 session-end 轨迹事件,无对外 API | transcript 自持 | — | local-patches 补丁 |
+| DSH | 内部 session-end 轨迹事件,无对外 API | transcript 自持(session.v\*.jsonl.zstd,分帧 zstd) | — | ✅ 0.0.11.0(**零补丁**:watcher 对账 + dsh-jsonl parser v1) |
 
 通用 hook 脚本(Claude/Codex 共用,事件模型几乎一致)+ 各家几行配置;差异留在 parser 层。
 
@@ -73,4 +73,6 @@ worker(hub 侧):
 
 - Codex transcript 落盘路径装机核实;Cursor stop payload 字段;DSH 补丁的挂点选择(session-end 事件)。
 
-> 实现(0.0.9.0):\`src/ingest/\` 三件 —— redact.ts(**共享脱敏**:密钥前缀形态 sk-/ghp_/AKIA/JWT + 敏感字段名 + 截断;工具流水 args/会话正文/导入 md 三应用点统一走它)、worker.ts(parser 钉版本 claude-jsonl/codex-jsonl/digest-md,漂移 >30% 拒绝不猜;ingestOne = POST 语义 → L0 + manifest;drain 排空 ingest-spool;reconcile 周期对账 transcript 目录)、hooks/brain-hook.mjs(通用 hook:读 .brain.json → POST 1.4s 硬超时 → 失败落 spool;附 claude/codex 样例配置)。manifest **以文件为准**(reconcile 每轮强制重读,人工删行会被看到);hub 侧 POST /brain/* 由 hub 读 body 传 handler(0.0.12.2)。open:Codex/Claude 真实 CLI 触发装机核实。
+> 实现(0.0.9.0):\`src/ingest/\` 三件 —— redact.ts(**共享脱敏**:密钥前缀形态 sk-/ghp_/AKIA/JWT + 敏感字段名 + 截断;工具流水 args/会话正文/导入 md 三应用点统一走它)、worker.ts(parser 钉版本 claude-jsonl/codex-jsonl/digest-md,漂移 >30% 拒绝不猜;ingestOne = POST 语义 → L0 + manifest;drain 排空 ingest-spool;reconcile 周期对账 transcript 目录)、hooks/brain-hook.mjs(通用 hook:读 .brain.json → POST 1.4s 硬超时 → 失败落 spool;附 claude/codex 样例配置)。manifest **以文件为准**(reconcile 每轮强制重读,人工删行会被看到);hub 侧 POST /brain/* 由 hub 读 body 传 handler(0.0.12.2)。
+>
+> DSH 通道(0.0.11.0,**零补丁**):DSH 的会话落盘是分帧追加 zstd(\`session.v3.jsonl.zstd\`,数据根 \`$DSH_HOME\` → \`~/.dsh\`)。node:zlib 内置 zstd 即可解单帧,scanZstdFrames 按 zstd 帧头/块头结构走(对齐 @deepseek-ai/dsh-session-persistence-jsonl 的实现),torn 尾帧跳过 —— watcher 把 \`$DSH_HOME/sessions\` 作为第三对账源,不碰 node_modules。**空闲闸门**(默认 10min,\`ingest.dshIdleMs\`):追加中的活跃 session 不摄,静默才提交;hash 变化(有新帧)→ 静默后重摄。session_id = session 目录名。parser v1 只取 user/assistant 的 text(reasoning 跳过)。watch.dsh 可覆盖路径或置 null 关闭。
