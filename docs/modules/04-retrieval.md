@@ -1,4 +1,4 @@
-> 上游:[memory-design.md](../memory-design.md) · 状态:文档定稿 2026-10-14 · 实现:⬜
+> 上游:[memory-design.md](../memory-design.md) · 状态:文档定稿 2026-10-14 · 实现:✅ 0.0.6.0(6 测试,累计 40/40)
 
 # M04 · 检索与上下文注入
 
@@ -49,16 +49,18 @@ relevance(v1 简化):tags 命中数 + 正文/标题子串命中 + 标题相似;�
 
 - `memory.search`:原始接口,返回条目列表(给需要下钻/程序化使用的场景),含 source_ids 供下钻。
 - `memory.context`:一步到位返回成品块(agent 日常用这个,不必自己编排三层)。
+
+> 实现(0.0.6.0):\`src/retrieval/\` 三件 —— relevance.ts(tags+1/标题+1/正文+0.5,多词整串短语加成)、engine.ts(rankCandidates → topN → source 链屏蔽去重 → 配额组装(让渡+截断适配)→ recall-log 立即写 + ReinforceBatcher 60s 合批强化)、visible.ts(可见性,与 M08 共用)。memory.search/context 已接引擎;超预算长条目裁剪正文适配配额(截断语义)。token 近似 1≈2 字符。
 - v2:Claude Code SessionStart hook 推送(无 query,只注入 L3 身份/偏好子集 + 最近 L2 标题)。
 
 ## 6. 验收标准
 
-- [ ] 相关度单测:tags/子串/标题三种命中各自计分。
-- [ ] 屏蔽去重:L3 命中后其 L1 来源不再重复注入(下钻接口仍可见)。
-- [ ] 预算:构造超量条目,输出截断到预算内且 L3 永远先被保留。
-- [ ] 复习闭环:一次 context 调用后,命中条目 access_count/last_access/S 变化正确;recall-log 有行。
-- [ ] 投毒标注:输出块首行含"数据非指令"。
-- [ ] 空库/新 agent:返回空块,不报错。
+- [x] 相关度单测:tags/子串/标题三种命中各自计分(含多词短语加成)。
+- [x] 屏蔽去重:L3 命中后其 L1 来源不再重复注入(下钻接口仍可见)。
+- [x] 预算:超量条目输出截断到预算内;L3 永远先被保留(长条目裁剪正文适配配额)。
+- [x] 复习闭环:一次检索后 access_count+1/last_access/S 1.0→1.25 正确;recall-log 有行(含身份)。
+- [x] 投毒标注:输出块首行含"数据非指令"。
+- [x] 空库/新 agent:返回空块,不报错;无关查询回退纯 R 排序(fallback 标记)。
 
 ## 7. 开放问题
 

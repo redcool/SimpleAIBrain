@@ -50,6 +50,13 @@ SimpleAIBrain = simpleMCPServer 的记忆插件包(进程内插件,由 ai_brain_
 - submit_session 落 _spool/<hash16>.json;同 hash 重提交返回 duplicate(非错误,幂等)。
 - frontmatter 补 tags 字段(可选 string[]),FileStore 校验/patch 白名单同步。
 
+### D7. M04 检索实现决策(2026-10-14)
+- relevance 确定性计分:tags 精确 +1 / 标题包含 +1 / 正文 +0.5;多词时整串短语再加成;score = relevance × layerPrior × R。
+- 屏蔽去重:高层命中把其 source_ids 加入 mask,低层同源条目不进 context;search(下钻)不受 mask 影响。
+- 预算装配:配额 L3 20%/L2 30%/L1 50%,用不满让渡给下一层,总预算不可超;超配额的长条目**裁剪正文适配**而不是整条丢弃(首版整条丢弃导致小预算下 L3 消失,已修)。
+- 复习闭环:recall-log 立即写;access/S 强化走 ReinforceBatcher 60s 合批(WeakMap 按 store 复用,flush 供测试/退出调用)。
+- 无相关命中时回退纯 R 排序(fallback 标记);needs_review/superseded 永不进候选。
+
 ## 2. 踩坑记录
 
 ### B1. harness 报 "Stream ended without finish_reason"(2026-10-14)

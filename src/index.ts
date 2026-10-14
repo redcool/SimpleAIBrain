@@ -18,4 +18,8 @@ export { TOOL_DEFS, toolNames, totalDescriptionChars } from './tools/definitions
 export type { ToolDef } from './tools/definitions.js';
 export { callTool, isKnownTool } from './tools/dispatch.js';
 export type { ToolCtx, ToolResult } from './tools/dispatch.js';
-export const VERSION = '0.0.5';
+export { visibleTo } from './retrieval/visible.js';
+export { relevance } from './retrieval/relevance.js';
+export { RETRIEVAL_DEFAULTS, rankCandidates, selectAndAssemble, retrieve, appendRecallLog, ReinforceBatcher, getBatcher } from './retrieval/engine.js';
+export type { RankedEntry, RankOptions, RankOutcome, AssembledContext, RetrieveOutcome } from './retrieval/engine.js';
+export const VERSION = '0.0.6';
