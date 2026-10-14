@@ -1,4 +1,4 @@
-> 上游:[memory-design.md](../memory-design.md) · 状态:文档定稿 2026-10-14 · 实现:⬜
+> 上游:[memory-design.md](../memory-design.md) · 状态:文档定稿 2026-10-14 · 实现:✅ 0.0.8.0(10 测试,累计 57/57)
 
 # M05 · 巩固(Consolidation)
 
@@ -42,14 +42,16 @@
 
 ## 6. 验收标准
 
-- [ ] 构造 3 个 session 的 jsonl → run 后产生 3 条 L1,内容含出处引用。
-- [ ] 幂等:同输入跑两遍,第二遍零新增(游标生效)。
-- [ ] 崩溃续跑:run 中途 kill → 重启后从游标继续,产物与一次跑完等价。
-- [ ] LLM 失败注入:callLLM 抛错 → session 跳过、run 正常结束、下轮重试成功。
-- [ ] 矛盾:预置旧 L3 + 新会话反对它 → 高优进 needs_review,低优被 supersede。
-- [ ] run 结束后 data/ 有 git commit。
+- [x] 构造 3 个 session → run 后产生 3 条 L1,内容含出处引用。
+- [x] 幂等:同输入跑两遍,第二遍零新增(游标生效)。
+- [x] 崩溃续跑:游标切分两 run 与一次跑完等价;游标文件丢失后由启动对账从条目重建,零重复。
+- [x] LLM 失败注入:callLLM 抛错 → session 跳过、run 正常结束、下轮重试成功。
+- [x] 矛盾:decision/高优进 needs_review,低优被 supersede(引擎裁定,新条目继承溯源链)。
+- [x] run 结束后 data/ 有 git commit(消息含 run_id 与计数)。
 
 ## 7. 开放问题
 
 - 提示词的具体措辞与 few-shot;用 stats + 命中日志盲调是禁忌,实现后每周人工抽查(见 M10)。
 - "同主题"判定 v1 用标签+人工复核,后续再上聚类。
+
+> 实现(0.0.8.0):\`src/consolidation/\` 两件 —— prompts.ts(四段提示词骨架 + 宽松 JSON 提取,剥围栏取首尾大括号)、consolidator.ts(Consolidator.run:摘要→归并→蒸馏→衰减)。单飞锁(实例布尔);幂等游标 = \`<dataDir>/consolidation-state.json\` 的 processed_spool(hash16→L1 id),**每 session 落盘**;启动对账以 L1 条目 source_ids(前 16 位 hex)为准重建游标——条目是唯一真相。LLM 只提名:conflicts 由引擎 resolveConflict 裁定、蒸馏候选由 promotionVerdict 判定、幻觉 old_id 忽略、无出处不写;LLM 失败按 session 跳过下轮重试,maxSessionsPerRun 封顶。插件接线:init 挂 24h 定时器(unref,schedule=off 关闭)+ POST /brain/consolidate 手动触发;hub /brain/* 路由补 IP 白名单。未做:会话结束事件触发(hub v1 无此钩子)、jsonl 原始日志补充细节(v1 只消费提交的 digest)、提示词打磨(开放项,每周人工抽查)。

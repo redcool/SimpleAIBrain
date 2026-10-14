@@ -6,6 +6,7 @@ import { TokenRegistry } from '../identity/registry.js';
 import { TOOL_DEFS } from '../tools/definitions.js';
 import { callTool as dispatchCallTool } from '../tools/dispatch.js';
 import { getBatcher } from '../retrieval/engine.js';
+import { Consolidator } from '../consolidation/consolidator.js';
 import { nowISO } from '../util/fsutil.js';
 import { VERSION } from '../index.js';
 import type { BrainCtx, BrainPlugin, ToolEvent } from './contract.js';
@@ -14,6 +15,8 @@ interface PluginState {
   ctx?: BrainCtx;
   store?: FileStore;
   registry?: TokenRegistry;
+  consolidator?: Consolidator;
+  consolTimer?: ReturnType<typeof setTimeout>;
   logged: number;
   errors: number;
 }
@@ -55,6 +58,20 @@ export function createBrainPlugin(): BrainPlugin {
       await state.store.init();
       state.registry = new TokenRegistry(join(ctx.dataDir, 'memory', '_identity', 'tokens.json'));
       await state.registry.load();
+      // M05:巩固器 + 每日定时(schedule=off 关闭;LLM 失败由巩固器按 session 跳过)
+      const consolidCfg = (ctx.brainConfig.consolidation || {}) as { schedule?: string; maxSessionsPerRun?: number };
+      if (consolidCfg.schedule !== 'off') {
+        state.consolidator = new Consolidator(state.store, {
+          dataDir: ctx.dataDir,
+          callLLM: ctx.callLLM,
+          logger: ctx.logger,
+          maxSessionsPerRun: consolidCfg.maxSessionsPerRun,
+        });
+        state.consolTimer = setInterval(() => {
+          void state.consolidator?.run().catch(() => { /* 下轮重试 */ });
+        }, 24 * 60 * 60 * 1000);
+        if (typeof state.consolTimer.unref === 'function') state.consolTimer.unref();
+      }
       ctx.logger('[ai-brain] ready v' + VERSION + ', entries=' + state.store.size + ', identities=' + state.registry.list().length + ', quarantined=' + state.store.getQuarantined().length);
     },
 
@@ -109,9 +126,15 @@ export function createBrainPlugin(): BrainPlugin {
         passiveLogged: state.logged,
         passiveErrors: state.errors,
       }));
+      // M05:手动触发一次巩固(调试/补跑;单飞锁防并发)
+      app.addRoute('POST', '/brain/consolidate', () => {
+        if (!state.consolidator) return { ok: false, error: 'consolidation disabled (schedule=off)' };
+        return state.consolidator.run();
+      });
     },
 
     async shutdown(): Promise<void> {
+      if (state.consolTimer) { clearInterval(state.consolTimer); state.consolTimer = undefined; }
       if (state.store) {
         const n = await getBatcher(state.store).flush();
         state.ctx?.logger('[ai-brain] shutdown, reinforced ' + n + ' entries');

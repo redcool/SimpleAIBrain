@@ -40,7 +40,7 @@ test('contract: version 1, name ai-brain, exactly 8 memory.* tools', async (t) =
     assert.ok(typeof td.description === 'string' && td.description.length > 0);
     assert.ok(td.inputSchema && td.inputSchema.type === 'object');
   }
-  assert.strictEqual(mod.VERSION, '0.0.7');
+  assert.strictEqual(mod.VERSION, '0.0.8');
 });
 
 test('init + callTool: save routed with identity; guest gating via null identity', async (t) => {
@@ -95,8 +95,9 @@ test('onToolEvent: oversized args truncated; secret keys redacted', async (t) =>
 test('registerRoutes: /brain/health reports entries; shutdown flushes reinforcement', async (t) => {
   const { mod, plugin, routes, identity, ctx } = await mk(t);
   plugin.registerRoutes(ctx.httpApp);
-  assert.strictEqual(routes.length, 1);
+  assert.strictEqual(routes.length, 2, 'health + consolidate (M05)');
   assert.strictEqual(routes[0].p, '/brain/health');
+  assert.strictEqual(routes[1].p, '/brain/consolidate');
   const health = await routes[0].h({});
   assert.strictEqual(health.ok, true);
   assert.strictEqual(health.entries, 0);
