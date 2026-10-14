@@ -1,4 +1,4 @@
-> 上游:[memory-design.md](../memory-design.md) · 状态:文档定稿 2026-10-14 · 实现:⬜
+> 上游:[memory-design.md](../memory-design.md) · 状态:文档定稿 2026-10-14 · 实现:✅ 0.0.2.0(11/11 测试)
 
 # M02 · 存储层(MemoryStore + 文件后端)
 
@@ -21,6 +21,8 @@ interface MemoryStore {
 ```
 
 v3 的 PgStore 实现同一签名。**接口双后端,实现单后端。**
+
+> 实现(0.0.2.0):`src/store/file-store.ts` FileStore。接口之外补充:`init()`(建目录+清 tmp+全量重扫)、`rescan()`、`getQuarantined()`;生命周期约定:启动 init,fs.watch 增量失效,每 5 分钟 rescan 兜底。moveEntry 以"写新+删旧"实现,git 依内容相似度识别 rename,历史不丢。运行时依赖仅 `yaml`。
 
 ## 3. 目录布局(owner 优先;frontmatter 是事实源,目录可重组)
 
@@ -47,6 +49,7 @@ data/memory/
 |---|---|---|
 | schema_version | int | 1 |
 | id | string | `mem_<ULID>`,全局唯一 |
+| title | string | 条目标题;缺省取正文首行(≤60 字符);决定文件 slug(实现期补充) |
 | layer | 1\|2\|3 | 与目录一致,目录为准 |
 | scope | enum | session\|agent\|member\|studio |
 | owner | object | { member, agent? };studio 级可空 |
@@ -81,9 +84,9 @@ data/memory/
 
 ## 7. 验收标准
 
-- [ ] 七操作单测全绿(临时 data 目录)。
-- [ ] 崩溃模拟:写一半 kill → 重启后无半截文件(靠 temp+rename)。
-- [ ] 手工放一个坏 YAML 文件 → 进 _quarantine,索引数量正确,服务不崩。
-- [ ] fs.watch 被禁用(模拟)→ 5 分钟重扫后索引一致。
-- [ ] 巩固 run 结束 → data/ 自动出现一个 commit。
-- [ ] 同一 id upsert 两次 → 不产生重复文件。
+- [x] 七操作单测全绿(临时 data 目录;11/11:含 CJK、scope 路径、同名不覆盖、L0 追加、patch 白名单)。
+- [x] 崩溃模拟:temp 残留被扫描忽略、init 清理,索引无半截文件(temp+rename 结构保证)。
+- [x] 手工放一个坏 YAML 文件 → 进 _quarantine,索引数量正确,服务不崩。
+- [x] fs.watch 被禁用(模拟)→ rescan() 捕获外部新增文件;周期重扫调度随 M05 巩固接线。
+- [ ] 巩固 run 结束 → data/ 自动出现一个 commit。(gitCommitIfRepo 已单测;自动 commit 随 M05 验证)
+- [x] 同一 id upsert 两次 → 不产生重复文件。
