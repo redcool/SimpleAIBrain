@@ -35,6 +35,13 @@ SimpleAIBrain = simpleMCPServer 的记忆插件包(进程内插件,由 ai_brain_
 - 证据判定输入为 AccessStats(去重会话数等),由 recall-log(M10)汇总供给;"同主题归并"作为 L1→L2 的组级路径传入。
 - 默认参数 k=0.25、地板 0.15 以 DEFAULTS 常量暴露;待开跑两周后校准(M03 §8)。
 
+### D5. M07 身份与权限实现决策(2026-10-14)
+- 文档内矛盾裁定:字符集表未含 @,但 §2 示例 builder@claude-code —— 依示例放宽 agent_label 允许 @,studio/member 仍严格 [a-z0-9-_.];已回写文档。
+- TokenRegistry 持久文件只存 SHA-256 哈希;明文 token 仅 issue/register 返回一次;rotate/revoke 不动 ID。
+- 角色约定:identity=null → 访客(只读 search/context);agent_label 非空 → agent;空串 → member 级凭证(全权)。
+- 权限闸门只做判定(assertCanInvoke 带可操作提示),执行点在 hub 工具分发处(M01 联调接线)。
+- .brain.json 非法字段报错带 "suggested:" 规范化建议,不自动改写(显式优于隐式)。
+
 ## 2. 踩坑记录
 
 ### B1. harness 报 "Stream ended without finish_reason"(2026-10-14)

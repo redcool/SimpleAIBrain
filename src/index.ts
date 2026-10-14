@@ -8,4 +8,10 @@ export { DEFAULTS, recallScore, strengthen, decaySweep } from './model/scoring.j
 export type { DecayOptions, DecayReport } from './model/scoring.js';
 export { canTransition, assertTransition, promotionVerdict, resolveConflict, inheritProvenance } from './model/lifecycle.js';
 export type { AccessStats, PromotionVerdict, ConflictDecision } from './model/lifecycle.js';
-export const VERSION = '0.0.3';
+export { makeIdentity, identityToString, parseIdentityId, normalizeSegment, IdentityError } from './identity/identity.js';
+export { generateToken, hashToken, TokenRegistry } from './identity/registry.js';
+export { readBrainJson } from './identity/brain-json.js';
+export type { BrainJson } from './identity/brain-json.js';
+export { roleOf, canInvoke, assertCanInvoke, MEMORY_TOOLS } from './identity/permissions.js';
+export type { Role } from './identity/permissions.js';
+export const VERSION = '0.0.4';

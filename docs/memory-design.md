@@ -75,7 +75,7 @@ R < 地板值 → status = archived       可逆,显式搜索可命中
 | [M04 检索与注入](modules/04-retrieval.md) | ✅ 定稿 | 打分扇出、预算组装、检索即复习 | ⬜ 未开始 | ⬜ |
 | [M05 巩固](modules/05-consolidation.md) | ✅ 定稿 | 定时摘要/升层/矛盾消解,幂等可续跑 | ⬜ 未开始 | ⬜ |
 | [M06 会话摄入](modules/06-ingestion.md) | ✅ 定稿 | hook 便签→POST→spool→watcher;被动流水;脱敏 | ⬜ 未开始 | ⬜ |
-| [M07 身份与权限](modules/07-identity.md) | ✅ 定稿 | ID/token 模型、.brain.json、权限闸门 | ⬜ 未开始 | ⬜ |
+| [M07 身份与权限](modules/07-identity.md) | ✅ 定稿 | ID/token 模型、.brain.json、权限闸门 | ✅ 0.0.4.0 | ✅ 27/27 |
 | [M08 工具面](modules/08-tools.md) | ✅ 定稿 | memory.* 工具契约(agent 可见部分) | ⬜ 未开始 | ⬜ |
 | [M09 部署与联邦](modules/09-federation.md) | ✅ 定稿 | Tier 0-3、读联邦、发布流(v2/v3 实现) | ⬜ v2 起 | ⬜ |
 | [M10 质量与观测](modules/10-quality.md) | ✅ 定稿 | stats、命中日志、review 出口 | ⬜ 未开始 | ⬜ |
