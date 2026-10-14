@@ -19,6 +19,8 @@ export type { ToolDef } from './tools/definitions.js';
 export { callTool, isKnownTool } from './tools/dispatch.js';
 export type { ToolCtx, ToolResult } from './tools/dispatch.js';
 export { visibleTo } from './retrieval/visible.js';
+export * from './plugin/contract.js';
+export { createBrainPlugin, redactArgs, matchesPattern } from './plugin/brain-plugin.js';
 export { relevance } from './retrieval/relevance.js';
 export { RETRIEVAL_DEFAULTS, rankCandidates, selectAndAssemble, retrieve, appendRecallLog, ReinforceBatcher, getBatcher } from './retrieval/engine.js';
 export type { RankedEntry, RankOptions, RankOutcome, AssembledContext, RetrieveOutcome } from './retrieval/engine.js';

@@ -1,4 +1,4 @@
-> 上游:[memory-design.md](../memory-design.md) · 状态:文档定稿 2026-10-14 · 实现:⬜
+> 上游:[memory-design.md](../memory-design.md) · 状态:文档定稿 2026-10-14 · 实现:✅ 0.0.7.0(brain 侧 6 测试,累计 46/46;hub 侧接线见 §3 落点清单)
 
 # M01 · 插件契约与宿主集成
 
@@ -57,6 +57,8 @@ export interface ToolEvent {
 - 热插拔语义:删配置/停服 = 拔出;数据在 data/ 原地不动;重插不丢。
 - 工具数量约束:memory.* 全家 ≤ 8 个(工具列表进入每个 agent 的上下文)。
 
+> 实现(0.0.7.0):\`src/plugin/contract.ts\`(契约类型,与 §2 逐字对应)+ \`src/plugin/brain-plugin.ts\`(createBrainPlugin 工厂)。init 建 FileStore(\`<dataDir>/memory\`)并报 entries/quarantined;callTool 直通 M08 分发;onToolEvent 脱敏(敏感键 [REDACTED])+ 截断(maxParamChars)+ 通配匹配 + memory.* 排除,异常吞掉计数;registerRoutes 提供 /brain/health;shutdown flush 强化批。passiveLog 缺省清单:blender.* / bridge.call / unreal.* / web.search。
+
 ## 5. 配置(config.json 增量)
 
 ```json
@@ -69,12 +71,16 @@ export interface ToolEvent {
 
 ## 6. 验收标准
 
-- [ ] config 无 aiBrain 段 → hub 正常启动,日志一条警告。
-- [ ] path 指向未构建目录 → 同上,不崩。
-- [ ] contractVersion=99 → 拒载并报明确错误。
-- [ ] 加载成功 → tools/list 含 memory.*;tools/call 可路由;内部错误返回 isError。
-- [ ] /rpc 与 MCP 两条路径的 onToolEvent 都触发(测试各验一条)。
-- [ ] brain 内部抛错不影响 hub 其它工具。
+- [x] 契约:contractVersion=1、name、8 个 memory.* 工具描述(brain 侧,0.0.7.0)。
+- [x] init→callTool 路由(save 通、guest 拒、未知工具报错);shutdown flush 落盘。
+- [x] onToolEvent:匹配进 L0、memory.*/未匹配排除、开关关闭、截断、脱敏、null 事件不抛。
+- [x] registerRoutes:/brain/health 报告 entries。
+- [ ] config 无 aiBrain 段 → hub 正常启动,日志一条警告。(hub 侧)
+- [ ] path 指向未构建目录 → 同上,不崩。(hub 侧)
+- [ ] contractVersion=99 → 拒载并报明确错误。(hub 侧)
+- [ ] 加载成功 → tools/list 含 memory.*;tools/call 可路由;内部错误返回 isError。(hub 侧)
+- [ ] /rpc 与 MCP 两条路径的 onToolEvent 都触发(测试各验一条)。(hub 侧)
+- [ ] brain 内部抛错不影响 hub 其它工具。(hub 侧)
 
 ## 7. 开放问题
 
