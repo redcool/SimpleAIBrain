@@ -31,4 +31,4 @@ export { redactText, SECRET_KEY_RE } from './ingest/redact.js';
 export { relevance } from './retrieval/relevance.js';
 export { RETRIEVAL_DEFAULTS, rankCandidates, selectAndAssemble, retrieve, appendRecallLog, ReinforceBatcher, getBatcher } from './retrieval/engine.js';
 export type { RankedEntry, RankOptions, RankOutcome, AssembledContext, RetrieveOutcome } from './retrieval/engine.js';
-export const VERSION = '0.0.9';
+export const VERSION = '0.0.10';

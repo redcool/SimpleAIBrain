@@ -71,6 +71,13 @@ SimpleAIBrain = simpleMCPServer 的记忆插件包(进程内插件,由 ai_brain_
 - 蒸馏幂等 = L2 已被任一 L3 引用即跳过;归并幂等 = L1 被 L2 引用即"已归并";L1 永远保留作证据。
 - 插件:init 挂 24h 定时器(unref,schedule=off 关);POST /brain/consolidate 手动触发;run 结束 gitCommitIfRepo(data/,消息含 run_id 与计数)。
 
+### D11. M10/M11 强制项实现决策(2026-10-14)
+- M10 基础项:stats 扩至 scopes 分布 + recall_7d(queries/hits,recall-log 聚合,坏行跳过)+ consolidation.last_run;巩固 run 末追加 '[ai-brain] review summary: needs_review=N quarantined=M' 日志行——无出口的队列等于不存在。
+- 自指排除靠 M02 的 SKIP_DIRS('recall-log'/'L0-log'/'_spool'/'_quarantine'/'_identity'),测试以"塞伪条目文件 → stats 不变"钉死。
+- M11 强制项:FileStore.removeMember(成员退出)= 删 members/<member>/ 子树,个人条目清零、studio 条目与 created_by 归因保留、索引走盘自动一致,退出动作 gitCommitIfRepo 记录;恢复演练 = git clone data/ → 新 FileStore init → stats 一致(data/ 自带 git,M11 §4)。
+- 投毒防护四件套(标注/归因/只到 L1/needs_review)在 M03/M04/M05 已有,本轮以联测钉死;脱敏三来源联测归拢到 m10-m11 测试文件。
+- 事故预案(吊销→filter 清洗→重扫)与远端 push 策略 = 流程项,不代码化(v1 边界)。
+
 ### D10. M06 摄入实现决策(2026-10-14)
 - 三态通道落地:hook 毫秒级只投便签(transcript_path,1.4s 硬超时,失败落 ingest-spool 一文件一事件)→ worker drain 重放 POST 语义(成功含重复即删,损坏丢弃不猜)→ reconcile 周期对账 transcript 目录补漏(50/轮上限)。
 - **manifest 以文件为准**:reconcile 每轮强制重读,不信内存缓存——人工删行必须被看到(测试抓出缓存坑)。

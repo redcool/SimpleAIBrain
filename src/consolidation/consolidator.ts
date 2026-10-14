@@ -139,7 +139,11 @@ export class Consolidator {
         this.opts.dataDir,
         'consolidation ' + runId + ': +' + report.summarized + ' L1, +' + report.merged + ' L2, +' + report.distilled + ' L3, ~' + report.archived + ' archived',
       );
+      // M10 §2:review 每日汇总(needs_review 队列 + _quarantine 事件 → hub 可见日志)
+      let quarantined = 0;
+      try { quarantined = (this.store as unknown as { getQuarantined?: () => string[] }).getQuarantined?.().length ?? 0; } catch { quarantined = 0; }
       this.opts.logger?.('[ai-brain] consolidation ' + runId + ': L1+' + report.summarized + ' L2+' + report.merged + ' L3+' + report.distilled + ' archived~' + report.archived + ' skipped=' + report.skipped.length);
+      this.opts.logger?.('[ai-brain] review summary ' + runId + ': needs_review=' + report.conflicts_needs_review + ' quarantined=' + quarantined + ' (人工复核队列,review_list 查看)');
       return report;
     } finally {
       this.running = false;

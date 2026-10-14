@@ -82,6 +82,17 @@ export class FileStore implements MemoryStore {
   getQuarantined(): string[] { return [...this.quarantined]; }
   has(id: string): boolean { return this.index.has(id); }
 
+  /** M11 §3:成员退出 = 删除 members/<member>/ 子树;返回清除的个人条目数。索引走盘重扫,自动一致;studio 条目与归因历史不动。 */
+  async removeMember(member: string): Promise<number> {
+    let n = 0;
+    for await (const m of this.scanMeta()) {
+      if (m.scope !== 'studio' && m.owner.member === member) n++;
+    }
+    await fs.rm(path.join(this.root, 'members', member), { recursive: true, force: true });
+    this.rescan().catch(() => { /* 下次 init/rescan 再对账 */ });
+    return n;
+  }
+
   async init(): Promise<void> {
     await ensureDir(this.root);
     await this.cleanTmp();

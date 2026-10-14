@@ -148,17 +148,46 @@ const handlers: Record<string, (ctx: ToolCtx, args: Record<string, unknown>) => 
 
   'memory.stats': async (ctx) => {
     let l1 = 0, l2 = 0, l3 = 0, archived = 0, review = 0, superseded = 0;
+    const scopes: Record<string, number> = { studio: 0, member: 0, agent: 0 };
     for await (const m of ctx.store.scanMeta()) {
       if (m.layer === 1) l1++; else if (m.layer === 2) l2++; else l3++;
       if (m.status === 'archived') archived++;
       else if (m.status === 'needs_review') review++;
       else if (m.status === 'superseded') superseded++;
+      if (m.scope === 'studio') scopes.studio++; else if (m.scope === 'member') scopes.member++; else if (m.scope === 'agent') scopes.agent++;
     }
     const store = ctx.store as { getQuarantined?: () => string[] };
+    const root = (ctx.store as unknown as { root: string }).root;
+    // M10 §2:近 7 天检索命中(recall-log 聚合;坏行跳过)
+    let queries7d = 0, hits7d = 0;
+    try {
+      const dir = path.join(root, 'recall-log');
+      const cutoff = Date.now() - 7 * 24 * 3600 * 1000;
+      for (const f of (await fs.readdir(dir)).filter((x) => x.endsWith('.jsonl'))) {
+        const text = await fs.readFile(path.join(dir, f), 'utf8');
+        for (const line of text.split('\n')) {
+          if (!line.trim()) continue;
+          try {
+            const rec = JSON.parse(line) as { ts?: string; ids?: string[] };
+            if (rec.ts && Date.parse(rec.ts) >= cutoff) { queries7d++; hits7d += Array.isArray(rec.ids) ? rec.ids.length : 0; }
+          } catch { /* 坏行跳过 */ }
+        }
+      }
+    } catch { /* 无 recall-log → 0 */ }
+    // M10 §2:巩固 run 历史摘要(consolidation-state.last_run;无则 null)
+    let consolidation: unknown = null;
+    try {
+      const raw = JSON.parse(await fs.readFile(path.join(root, '..', 'consolidation-state.json'), 'utf8')) as { last_run?: unknown };
+      consolidation = raw.last_run ?? null;
+    } catch { consolidation = null; }
     return {
       layers: { L1: l1, L2: l2, L3: l3 },
+      scopes,
       status: { active: l1 + l2 + l3 - archived - review - superseded, superseded, archived, needs_review: review },
       quarantined: typeof store.getQuarantined === 'function' ? store.getQuarantined()!.length : 0,
+      recall_7d: { queries: queries7d, hits: hits7d },
+      consolidation,
+      generated_at: nowISO(),
     };
   },
 

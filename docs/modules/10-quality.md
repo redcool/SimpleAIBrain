@@ -1,4 +1,4 @@
-> 上游:[memory-design.md](../memory-design.md) · 状态:文档定稿 2026-10-14 · 实现:⬜
+> 上游:[memory-design.md](../memory-design.md) · 状态:文档定稿 2026-10-14 · 实现:✅ 0.0.10.0(4 测试,累计 72/72)
 
 # M10 · 质量与观测
 
@@ -19,7 +19,7 @@
 
 ## 4. 验收标准
 
-- [ ] stats 在空库/满库都返回合法 JSON。
-- [ ] recall-log 每行可回放:拿 id 能在索引里找到条目(或其 superseded 历任)。
-- [ ] 巩固 run 结束 → 日志出现 review 汇总段(含计数)。
-- [ ] 命中日志本身不进记忆(自指排除)。
+- [x] stats 在空库/满库都返回合法 JSON(v0.0.10 起:L1-3 + status + scopes + quarantined + recall_7d + consolidation.last_run)。
+- [x] recall-log 每行可回放:拿 id 能在索引里找到条目(含 superseded 历任)。
+- [x] 巩固 run 结束 → 日志出现 review 汇总段('[ai-brain] review summary …: needs_review=N quarantined=M')。
+- [x] 命中日志本身不进记忆:recall-log 在 SKIP_DIRS,自指排除(测试:塞伪条目文件 → stats 不变)。

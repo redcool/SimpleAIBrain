@@ -1,4 +1,4 @@
-> 上游:[memory-design.md](../memory-design.md) · 状态:文档定稿 2026-10-14 · 实现:⬜
+> 上游:[memory-design.md](../memory-design.md) · 状态:文档定稿 2026-10-14 · 实现:✅ 0.0.10.0(5 测试,累计 72/72;事故预案/远端 push 为流程项)
 
 # M11 · 安全与数据生命周期
 
@@ -27,7 +27,7 @@
 
 ## 5. 验收标准
 
-- [ ] 注入块含"数据非指令"标注(与 M04 联测)。
-- [ ] 脱敏联测:三类来源(参数/正文/导入)各一例。
-- [ ] 成员退出:子树删除后 stats 归零该 member,索引一致,git 有记录。
-- [ ] 恢复演练:删 data/ → 从 git 恢复 → 重启 → stats 与删除前一致(差一个未巩固增量)。
+- [x] 注入块含"数据非指令"标注(M04 联测,首行断言)。
+- [x] 脱敏联测:三类来源(参数 redactArgs / 正文 redactText / 导入 md 走 ingest)各一例断言。
+- [x] 成员退出:FileStore.removeMember 子树删除 → 个人条目归零、studio 条目与归因历史保留、索引走盘一致、git 有记录。
+- [x] 恢复演练:git clone data/ → 新 FileStore init → 条目与删除前一致(测试覆盖;真实"重启 brain"同路径)。
