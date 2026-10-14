@@ -57,10 +57,11 @@ test('guest: search/context allowed; save/stats/edit denied', async (t) => {
   assert.strictEqual(role, 'guest');
   assert.ok(mod.canInvoke(role, 'memory.search'));
   assert.ok(mod.canInvoke(role, 'memory.context'));
-  for (const tool of ['memory.save', 'memory.stats', 'memory.edit', 'memory.whoami', 'memory.submit_session']) {
+  for (const tool of ['memory.save', 'memory.stats', 'memory.edit', 'memory.submit_session']) {
     assert.ok(!mod.canInvoke(role, tool), tool + ' denied for guest');
     assert.throws(() => mod.assertCanInvoke(role, tool), /read-only guest/);
   }
+  assert.ok(mod.canInvoke(role, 'memory.whoami'), 'whoami allowed for guest (M08 section 2 ruling)');
 });
 
 test('agent token: edit/review_list denied with member-token hint; save ok', async (t) => {

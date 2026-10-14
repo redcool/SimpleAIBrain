@@ -35,7 +35,8 @@
 | 操作 | agent token | member token | 访客(null) |
 |---|---|---|---|
 | memory.save / search / context / submit_session | ✅ | ✅ | 只读 search/context |
-| memory.stats / whoami | ✅ | ✅ | ❌ |
+| memory.stats | ✅ | ✅ | ❌ |
+| memory.whoami | ✅ | ✅ | ✅(调试;M08 §2 "全部"裁定,0.0.5.0) |
 | memory.review_list(裁决动作) | ❌ | ✅ | ❌ |
 | memory.edit(edit/pin/unpin/forget/restore) | ❌ | ✅ | ❌ |
 | 需要时为 member 保留"代表用户写 L3"的直写 | ❌ | ✅ | ❌ |

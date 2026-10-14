@@ -42,6 +42,14 @@ SimpleAIBrain = simpleMCPServer 的记忆插件包(进程内插件,由 ai_brain_
 - 权限闸门只做判定(assertCanInvoke 带可操作提示),执行点在 hub 工具分发处(M01 联调接线)。
 - .brain.json 非法字段报错带 "suggested:" 规范化建议,不自动改写(显式优于隐式)。
 
+### D6. M08 工具面实现决策(2026-10-14)
+- 工具恰 8 个;描述总字符基线 239(测试断言 ≤1500 防悄悄膨胀)。
+- 裁定:whoami 对访客开放(M08 §2 "全部" 优先于 M07 §4 ❌;访客需要知道自己是访客);M07 文档矩阵已回写。
+- save 诚实语义:固定返回 "已存为候选(L1);能否长期保留由巩固决定,不承诺进入 L3"。
+- 可见性规则:访客=仅 studio;agent=本 agent+本 member+studio;member 凭证=本 member 全部+studio。
+- submit_session 落 _spool/<hash16>.json;同 hash 重提交返回 duplicate(非错误,幂等)。
+- frontmatter 补 tags 字段(可选 string[]),FileStore 校验/patch 白名单同步。
+
 ## 2. 踩坑记录
 
 ### B1. harness 报 "Stream ended without finish_reason"(2026-10-14)

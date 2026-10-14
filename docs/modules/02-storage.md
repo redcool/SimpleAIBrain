@@ -54,6 +54,7 @@ data/memory/
 | scope | enum | session\|agent\|member\|studio |
 | owner | object | { member, agent? };studio 级可空 |
 | project | string | 数据标签,可空;**不进身份** |
+| tags | string[] | 可选,缺省 [](M08 save 参数,实现期补充) |
 | kind | enum | fact\|preference\|event\|procedure\|decision |
 | importance | float | 0~1,默认 0.5 |
 | stability | float | S,默认 1.0,随访问增强 |

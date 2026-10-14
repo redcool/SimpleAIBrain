@@ -49,6 +49,7 @@ function validateMeta(raw: Record<string, unknown>): EntryMeta {
   if (!Array.isArray(raw.source_ids) || raw.source_ids.some((x) => typeof x !== 'string')) fail('bad source_ids');
   if (typeof raw.created_by !== 'string' || !raw.created_by) fail('bad created_by');
   if (raw.pinned !== undefined && typeof raw.pinned !== 'boolean') fail('bad pinned');
+  if (raw.tags !== undefined && (!Array.isArray(raw.tags) || raw.tags.some((x) => typeof x !== 'string'))) fail('bad tags');
   const meta = raw as unknown as EntryMeta;
   meta.pinned = raw.pinned === true;
   return meta;
@@ -188,6 +189,7 @@ export class FileStore implements MemoryStore {
     if (meta.pinned === undefined) meta.pinned = false;
     if (meta.superseded_by === undefined) meta.superseded_by = null;
     if (!meta.source_ids) meta.source_ids = [];
+    if (!meta.tags) meta.tags = [];
     if (!meta.created_by) meta.created_by = 'unknown';
     if (!meta.scope) meta.scope = meta.owner?.agent ? 'agent' : 'member';
     if (!meta.title || !meta.title.trim()) meta.title = firstLine(input.body) || 'untitled';
@@ -221,7 +223,7 @@ export class FileStore implements MemoryStore {
 
   static PATCHABLE: ReadonlySet<string> = new Set([
     'title', 'project', 'importance', 'stability', 'access_count', 'last_access',
-    'status', 'superseded_by', 'source_ids', 'pinned',
+    'status', 'superseded_by', 'source_ids', 'pinned', 'tags',
   ]);
 
   async patchMeta(id: string, patch: Partial<EntryMeta>): Promise<void> {

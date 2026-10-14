@@ -13,7 +13,7 @@ export const MEMORY_TOOLS = [
  * agent 一切写入降级为"候选"(L1 起),与原则 3 一致。
  */
 const MATRIX: Record<Role, ReadonlySet<string>> = {
-  guest: new Set(['memory.search', 'memory.context']),
+  guest: new Set(['memory.search', 'memory.context', 'memory.whoami']),   // whoami 全部可用(M08 §2,调试)
   agent: new Set(['memory.save', 'memory.search', 'memory.context', 'memory.submit_session', 'memory.stats', 'memory.whoami']),
   member: new Set([...MEMORY_TOOLS]),
 };
@@ -26,6 +26,10 @@ export function roleOf(identity: Identity | null): Role {
 
 export function canInvoke(role: Role, tool: string): boolean {
   return MATRIX[role].has(tool);
+}
+
+export function allowedTools(role: Role): string[] {
+  return [...MATRIX[role]];
 }
 
 /** 拒绝时给出可操作的提示(验收:agent 调 edit 需明确提示要 member token) */

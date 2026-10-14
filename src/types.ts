@@ -25,6 +25,7 @@ export interface EntryMeta {
   owner: EntryOwner;
   title: string;
   project?: string;              // 数据标签,不进身份
+  tags?: string[];               // 自由标签(M08 save 参数),缺省 []
   kind: MemoryKind;
   importance: number;            // 0..1
   stability: number;             // S,随访问增强

@@ -1,4 +1,4 @@
-> 上游:[memory-design.md](../memory-design.md) · 状态:文档定稿 2026-10-14 · 实现:⬜
+> 上游:[memory-design.md](../memory-design.md) · 状态:文档定稿 2026-10-14 · 实现:✅ 0.0.5.0(7 测试,累计 34/34)
 
 # M08 · 工具面(memory.* MCP 契约)
 
@@ -30,13 +30,15 @@
 - **submit_session 的幂等**:重复提交同 hash → 返回"duplicate,已忽略",非错误。
 - 所有工具在身份为 null 时按 §2 表降级或拒绝。
 
+> 实现(0.0.5.0):\`src/tools/definitions.ts\`(8 个 ToolDef:name/描述/inputSchema)+ \`src/tools/dispatch.ts\`(callTool:权限闸门 → 分发 → 统一 {error}+isError)。可见性:访客=仅 studio;agent=本 agent+本 member+studio;member 凭证=本 member 全部+studio。submit_session 落 \`_spool/<hash16>.json\`,同 hash 幂等返回 duplicate。context 为 v1 简版(分层配额 20/30/50 + 相关性过滤 + 无命中回退),M04 接管精化。**描述总字符基线 = 239**(测试回归,上限 1500)。
+
 ## 4. 验收标准
 
-- [ ] 每个工具:合法参数成功、缺参报错、错误信息可读(三例各一测)。
-- [ ] 权限:§2 表逐行验证。
-- [ ] save → 索引可见新条目,layer=1,created_by=agent:<id>。
-- [ ] edit(forget) → status=archived;restore → active。
-- [ ] 工具描述总计字符数记录在案(回归基线,防止悄悄膨胀)。
+- [x] 每个工具:合法参数成功、缺参报错、错误信息可读(三例各一测)。
+- [x] 权限:§2 表逐行验证(含访客 whoami 放行裁定)。
+- [x] save → 索引可见新条目,layer=1,created_by=agent:<id>。
+- [x] edit(forget) → status=archived;restore → active(另 pin/unpin、review resolve 走状态机)。
+- [x] 工具描述总计字符数记录在案:239 字符(基线,回归上限 1500)。
 
 ## 5. 开放问题
 

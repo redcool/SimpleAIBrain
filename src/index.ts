@@ -12,6 +12,10 @@ export { makeIdentity, identityToString, parseIdentityId, normalizeSegment, Iden
 export { generateToken, hashToken, TokenRegistry } from './identity/registry.js';
 export { readBrainJson } from './identity/brain-json.js';
 export type { BrainJson } from './identity/brain-json.js';
-export { roleOf, canInvoke, assertCanInvoke, MEMORY_TOOLS } from './identity/permissions.js';
+export { roleOf, canInvoke, assertCanInvoke, allowedTools, MEMORY_TOOLS } from './identity/permissions.js';
 export type { Role } from './identity/permissions.js';
-export const VERSION = '0.0.4';
+export { TOOL_DEFS, toolNames, totalDescriptionChars } from './tools/definitions.js';
+export type { ToolDef } from './tools/definitions.js';
+export { callTool, isKnownTool } from './tools/dispatch.js';
+export type { ToolCtx, ToolResult } from './tools/dispatch.js';
+export const VERSION = '0.0.5';
