@@ -60,6 +60,7 @@ data/memory/
 | access_count | int | 默认 0 |
 | last_access | ISO8601 | 默认 = created_at |
 | status | enum | active\|superseded\|archived\|needs_review |
+| pinned | bool | 缺省 false;跳过衰减与自动覆盖(M03 §3,实现期补充) |
 | superseded_by | string\|null | |
 | source_ids | string[] | 溯源链(mem_/sess_/log_ 前缀) |
 | created_by | string | consolidation\|<member_id>\|agent:<id>\|import |

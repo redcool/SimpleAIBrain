@@ -31,6 +31,7 @@ export interface EntryMeta {
   access_count: number;
   last_access: string;           // ISO8601 UTC
   status: EntryStatus;
+  pinned?: boolean;              // pin:跳过衰减与自动覆盖(M03 §3);缺省 false
   superseded_by: string | null;
   source_ids: string[];
   created_by: string;            // consolidation | <member_id> | agent:<id> | import

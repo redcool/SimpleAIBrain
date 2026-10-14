@@ -71,7 +71,7 @@ R < 地板值 → status = archived       可逆,显式搜索可命中
 |---|---|---|---|---|
 | [M01 插件契约与宿主集成](modules/01-plugin-host.md) | ✅ 定稿 | 六钩子契约、动态加载、hub 四个落点 | ⬜ 未开始 | ⬜ |
 | [M02 存储层](modules/02-storage.md) | ✅ 定稿 | MemoryStore 接口 + 文件后端 + 数据规范 | ✅ 0.0.2.0 | ✅ 11/11 |
-| [M03 记忆模型](modules/03-memory-model.md) | ✅ 定稿 | 分层、存活评分、升层证据、冲突消解 | ⬜ 未开始 | ⬜ |
+| [M03 记忆模型](modules/03-memory-model.md) | ✅ 定稿 | 分层、存活评分、升层证据、冲突消解 | ✅ 0.0.3.0 | ✅ 20/20 |
 | [M04 检索与注入](modules/04-retrieval.md) | ✅ 定稿 | 打分扇出、预算组装、检索即复习 | ⬜ 未开始 | ⬜ |
 | [M05 巩固](modules/05-consolidation.md) | ✅ 定稿 | 定时摘要/升层/矛盾消解,幂等可续跑 | ⬜ 未开始 | ⬜ |
 | [M06 会话摄入](modules/06-ingestion.md) | ✅ 定稿 | hook 便签→POST→spool→watcher;被动流水;脱敏 | ⬜ 未开始 | ⬜ |

@@ -1,4 +1,4 @@
-> 上游:[memory-design.md](../memory-design.md) · 状态:文档定稿 2026-10-14 · 实现:⬜
+> 上游:[memory-design.md](../memory-design.md) · 状态:文档定稿 2026-10-14 · 实现:✅ 0.0.3.0(9 测试)
 
 # M03 · 记忆模型(分层 · 存活 · 升层 · 冲突)
 
@@ -29,6 +29,8 @@ R = importance · e^(−Δt / S)      Δt = now − last_access(小时)
 - 检索命中即复习:命中注入的条目 access_count+1、last_access=now、S 增强(M04 触发,本模块提供纯函数)。
 - **archived 可逆**:显式搜索(带 `includeArchived`)可命中;恢复 = patchMeta 回 active。
 - pinned 条目:跳过衰减扫描,不被自动 supersede(只能人工解除)。
+
+> 实现(0.0.3.0):`src/model/scoring.ts`(recallScore/strengthen/decaySweep 纯函数)+ `src/model/lifecycle.ts`(状态机表/证据判定/冲突判定/溯源继承)。pin 落地为 frontmatter 字段 `pinned: boolean`(缺省 false,patchMeta 可改)——已回写 M02 §4 表。默认参数 k=0.25、地板 0.15 以 `DEFAULTS` 常量暴露,待校准。
 
 ## 4. 升层证据(时间只用于衰减,不用于升层)
 
@@ -61,11 +63,11 @@ active ──(巩固/人工)──▶ superseded ──▶ (终态,只读)
 
 ## 7. 验收标准
 
-- [ ] 评分纯函数单测:Δt/S/k 各维度边界(Δt=0、S→∞、k=0)。
-- [ ] 状态机:每个转移一条单测;非法转移(如 superseded → active)被拒绝。
-- [ ] 证据门槛:构造访问日志,验证达标/不达标判定。
-- [ ] 冲突:低优自动 supersede、高优进 needs_review,两条路径各一测。
-- [ ] pin 生效:衰减扫描跳过 pinned。
+- [x] 评分纯函数单测:Δt/S/k 各维度边界(Δt=0、S→∞、k=0)。
+- [x] 状态机:每个转移一条单测;非法转移(如 superseded → active)被拒绝。
+- [x] 证据门槛:构造访问统计,验证达标/不达标判定(L1→L2 两路径、L2→L3 三路径、L3 拒绝)。
+- [x] 冲突:低优自动 supersede、高优进 needs_review,两条路径各一测。
+- [x] pin 生效:衰减扫描跳过 pinned(含 FileStore 集成测试)。
 
 ## 8. 开放问题
 

@@ -48,7 +48,10 @@ function validateMeta(raw: Record<string, unknown>): EntryMeta {
   if (raw.superseded_by !== null && typeof raw.superseded_by !== 'string') fail('bad superseded_by');
   if (!Array.isArray(raw.source_ids) || raw.source_ids.some((x) => typeof x !== 'string')) fail('bad source_ids');
   if (typeof raw.created_by !== 'string' || !raw.created_by) fail('bad created_by');
-  return raw as unknown as EntryMeta;
+  if (raw.pinned !== undefined && typeof raw.pinned !== 'boolean') fail('bad pinned');
+  const meta = raw as unknown as EntryMeta;
+  meta.pinned = raw.pinned === true;
+  return meta;
 }
 
 function serializeEntry(meta: EntryMeta, body: string): string {
@@ -182,6 +185,7 @@ export class FileStore implements MemoryStore {
     if (meta.access_count === undefined) meta.access_count = 0;
     if (!meta.last_access) meta.last_access = meta.created_at;
     if (!meta.status) meta.status = 'active';
+    if (meta.pinned === undefined) meta.pinned = false;
     if (meta.superseded_by === undefined) meta.superseded_by = null;
     if (!meta.source_ids) meta.source_ids = [];
     if (!meta.created_by) meta.created_by = 'unknown';
@@ -217,7 +221,7 @@ export class FileStore implements MemoryStore {
 
   static PATCHABLE: ReadonlySet<string> = new Set([
     'title', 'project', 'importance', 'stability', 'access_count', 'last_access',
-    'status', 'superseded_by', 'source_ids',
+    'status', 'superseded_by', 'source_ids', 'pinned',
   ]);
 
   async patchMeta(id: string, patch: Partial<EntryMeta>): Promise<void> {

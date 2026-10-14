@@ -28,6 +28,13 @@ SimpleAIBrain = simpleMCPServer 的记忆插件包(进程内插件,由 ai_brain_
 - FileStore 在七操作外补 init()/rescan()/cleanTmp():tmp 残留清理、坏 YAML → _quarantine;patchMeta 走白名单(结构字段 layer/owner 只能走 moveEntry/upsert)。
 - 测试命令用 `node --test tests/*.test.cjs`(本机 Node v24 不接受目录参数)。
 
+### D4. M03 记忆模型实现决策(2026-10-14)
+- pin 落地为 frontmatter 字段 "pinned: bool"(文档原本只提语义没有字段),FileStore 校验/patch 白名单同步支持。
+- M03 全部为纯函数(src/model/scoring.ts + lifecycle.ts):decaySweep 只报归档候选清单,落库由 M05 经 store.patchMeta 执行——规则与执行分离。
+- 状态机用显式转移表:active→{superseded,archived,needs_review};needs_review→{active,superseded,archived};archived→{active};superseded 终态只读。
+- 证据判定输入为 AccessStats(去重会话数等),由 recall-log(M10)汇总供给;"同主题归并"作为 L1→L2 的组级路径传入。
+- 默认参数 k=0.25、地板 0.15 以 DEFAULTS 常量暴露;待开跑两周后校准(M03 §8)。
+
 ## 2. 踩坑记录
 
 ### B1. harness 报 "Stream ended without finish_reason"(2026-10-14)
