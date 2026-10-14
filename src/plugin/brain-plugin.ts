@@ -7,6 +7,8 @@ import { TOOL_DEFS } from '../tools/definitions.js';
 import { callTool as dispatchCallTool } from '../tools/dispatch.js';
 import { getBatcher } from '../retrieval/engine.js';
 import { Consolidator } from '../consolidation/consolidator.js';
+import { IngestWorker } from '../ingest/worker.js';
+import { redactArgs } from '../ingest/redact.js';
 import { nowISO } from '../util/fsutil.js';
 import { VERSION } from '../index.js';
 import type { BrainCtx, BrainPlugin, ToolEvent } from './contract.js';
@@ -17,23 +19,12 @@ interface PluginState {
   registry?: TokenRegistry;
   consolidator?: Consolidator;
   consolTimer?: ReturnType<typeof setTimeout>;
+  ingestWorker?: IngestWorker;
   logged: number;
   errors: number;
 }
 
-const SECRET_KEY_RE = /token|password|secret|apikey|api_key|authorization|credential/i;
-
-/** args 摘要:敏感键打码 + 截断(M01 §4;脱敏在 brain 侧) */
-export function redactArgs(args: Record<string, unknown> | undefined | null, maxChars: number): string {
-  const out: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(args ?? {})) {
-    out[k] = SECRET_KEY_RE.test(k) ? '[REDACTED]' : v;
-  }
-  let s = JSON.stringify(out);
-  if (s === undefined || s === null) s = '{}';
-  if (s.length > maxChars) s = s.slice(0, maxChars) + '…(truncated)';
-  return s;
-}
+export { redactArgs };   // M06 §6:共享脱敏,来源 ingest/redact
 
 /** 工具通配:'blender.*' 前缀匹配;精确名全等 */
 export function matchesPattern(tool: string, patterns: string[]): boolean {
@@ -71,6 +62,23 @@ export function createBrainPlugin(): BrainPlugin {
           void state.consolidator?.run().catch(() => { /* 下轮重试 */ });
         }, 24 * 60 * 60 * 1000);
         if (typeof state.consolTimer.unref === 'function') state.consolTimer.unref();
+      }
+      // M06:摄入 worker(POST 语义 + spool 排空 + transcript 对账;ingest.enabled=false 关闭)
+      const ingestCfg = (ctx.brainConfig.ingest || {}) as {
+        enabled?: boolean; drainIntervalMs?: number; reconcileIntervalMs?: number;
+        watch?: { claude?: string | null; codex?: string | null };
+      };
+      if (ingestCfg.enabled !== false) {
+        state.ingestWorker = new IngestWorker({
+          dataDir: ctx.dataDir,
+          store: state.store,
+          logger: ctx.logger,
+          maxParamChars: ctx.brainConfig.passiveLog?.maxParamChars,
+          watch: ingestCfg.watch,
+          drainIntervalMs: ingestCfg.drainIntervalMs,
+          reconcileIntervalMs: ingestCfg.reconcileIntervalMs,
+        });
+        state.ingestWorker.start();
       }
       ctx.logger('[ai-brain] ready v' + VERSION + ', entries=' + state.store.size + ', identities=' + state.registry.list().length + ', quarantined=' + state.store.getQuarantined().length);
     },
@@ -131,10 +139,16 @@ export function createBrainPlugin(): BrainPlugin {
         if (!state.consolidator) return { ok: false, error: 'consolidation disabled (schedule=off)' };
         return state.consolidator.run();
       });
+      // M06:hook 提交入口(hub 已读 body;同机传 transcript_path,远程带 content)
+      app.addRoute('POST', '/brain/ingest', (body: unknown) => {
+        if (!state.ingestWorker) return Promise.resolve({ ok: false, error: 'ingest disabled' });
+        return state.ingestWorker.ingestOne(body as Parameters<IngestWorker['ingestOne']>[0]);
+      });
     },
 
     async shutdown(): Promise<void> {
       if (state.consolTimer) { clearInterval(state.consolTimer); state.consolTimer = undefined; }
+      state.ingestWorker?.stop();
       if (state.store) {
         const n = await getBatcher(state.store).flush();
         state.ctx?.logger('[ai-brain] shutdown, reinforced ' + n + ' entries');

@@ -1,0 +1,11 @@
+{
+  "hooks": {
+    "stop": [
+      {
+        "command": "node H:/ai_works/SimpleAIBrain/hooks/brain-hook.mjs",
+        "timeout_ms": 2000,
+        "env": { "BRAIN_HARNESS": "codex-jsonl" }
+      }
+    ]
+  }
+}

@@ -1,4 +1,4 @@
-> 上游:[memory-design.md](../memory-design.md) · 状态:文档定稿 2026-10-14 · 实现:⬜
+> 上游:[memory-design.md](../memory-design.md) · 状态:文档定稿 2026-10-14 · 实现:✅ 0.0.9.0(7 测试,累计 64/64)
 
 # M06 · 会话摄入(被动采集 · hook · spool · watcher)
 
@@ -62,13 +62,15 @@ worker(hub 侧):
 
 ## 8. 验收标准
 
-- [ ] Claude Code 真实会话结束后 60s 内,L0 出现该 session 的解析记录(transcript_path 生效)。
-- [ ] 断网模拟:hook 落 spool;恢复后 worker 补交,无重复(hash 幂等)。
-- [ ] watcher:手工删掉 manifest 一行 → 下轮对账补交。
-- [ ] 脱敏:构造含 fake-api-key 的会话/参数 → L0 中已打码。
-- [ ] Codex hook 配置样例在真实 codex CLI 上触发一次成功(装机核实项)。
-- [ ] memory.search 调用不产生工具流水记录。
+- [x] transcript_path 机制生效:hook 提交路径 → worker 读文件 → parser → L0 解析记录(真实会话 60s 内触发为装机核实项,hook 样例已交付)。
+- [x] 断网模拟:hook 落 spool;drain 补交,hash 幂等无重复。
+- [x] watcher:手工删掉 manifest 一行 → 下轮对账补交(manifest 以文件为准)。
+- [x] 脱敏:sk-/ghp_ 假密钥的会话/参数 → L0 中已打码;敏感字段名打码。
+- [ ] Codex hook 配置样例在真实 codex CLI 上触发一次成功(装机核实项,样例已交付)。
+- [x] memory.search 调用不产生工具流水记录(M01 排除逻辑已有测试)。
 
 ## 9. 开放问题
 
 - Codex transcript 落盘路径装机核实;Cursor stop payload 字段;DSH 补丁的挂点选择(session-end 事件)。
+
+> 实现(0.0.9.0):\`src/ingest/\` 三件 —— redact.ts(**共享脱敏**:密钥前缀形态 sk-/ghp_/AKIA/JWT + 敏感字段名 + 截断;工具流水 args/会话正文/导入 md 三应用点统一走它)、worker.ts(parser 钉版本 claude-jsonl/codex-jsonl/digest-md,漂移 >30% 拒绝不猜;ingestOne = POST 语义 → L0 + manifest;drain 排空 ingest-spool;reconcile 周期对账 transcript 目录)、hooks/brain-hook.mjs(通用 hook:读 .brain.json → POST 1.4s 硬超时 → 失败落 spool;附 claude/codex 样例配置)。manifest **以文件为准**(reconcile 每轮强制重读,人工删行会被看到);hub 侧 POST /brain/* 由 hub 读 body 传 handler(0.0.12.2)。open:Codex/Claude 真实 CLI 触发装机核实。

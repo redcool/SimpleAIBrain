@@ -11,6 +11,12 @@ export interface BrainConfig {
   path?: string;
   passiveLog?: PassiveLogConfig;
   consolidation?: { schedule?: string; maxSessionsPerRun?: number };
+  ingest?: {
+    enabled?: boolean;
+    drainIntervalMs?: number;
+    reconcileIntervalMs?: number;
+    watch?: { claude?: string | null; codex?: string | null };
+  };
 }
 
 export interface RouteRegistrar {

@@ -64,6 +64,21 @@ SimpleAIBrain = simpleMCPServer 的记忆插件包(进程内插件,由 ai_brain_
 - resolveIdentity(token) 作为 v1 扩展方法挂在插件实例上(契约可选);TokenRegistry 落 <dataDir>/memory/_identity/tokens.json,_identity 已进 SKIP_DIRS;registry.save 自建目录。
 - 工具版本节奏:0.0.7.0 = M01 brain 侧;0.0.7.1 = resolveIdentity 扩展;hub 侧接线在 SimpleMcpServer 仓库以 0.0.12 提交。
 
+### D9. M05 巩固实现决策(2026-10-14)
+- 四阶段一 run:摘要(_spool digest→L1 event,kind 映射 digest→event)→ 归并(同 agent 未归并 L1 ≥ minMergeGroup,默认 5)→ 蒸馏(promotionVerdict 达标 L2→原子 L3)→ 衰减(decaySweep 落库归档)。
+- 游标:processed_spool(hash16→L1 id)每 session 落盘;启动对账以 L1 source_ids 前 16 位 hex 重建——**条目是唯一真相**,游标只是缓存。
+- LLM 只提名不裁定:conflicts 经 resolveConflict、蒸馏候选经 promotionVerdict、幻觉 old_id 忽略、merges 无出处不写;失败按 session 跳过下轮重试,maxSessionsPerRun=20 封顶。
+- 蒸馏幂等 = L2 已被任一 L3 引用即跳过;归并幂等 = L1 被 L2 引用即"已归并";L1 永远保留作证据。
+- 插件:init 挂 24h 定时器(unref,schedule=off 关);POST /brain/consolidate 手动触发;run 结束 gitCommitIfRepo(data/,消息含 run_id 与计数)。
+
+### D10. M06 摄入实现决策(2026-10-14)
+- 三态通道落地:hook 毫秒级只投便签(transcript_path,1.4s 硬超时,失败落 ingest-spool 一文件一事件)→ worker drain 重放 POST 语义(成功含重复即删,损坏丢弃不猜)→ reconcile 周期对账 transcript 目录补漏(50/轮上限)。
+- **manifest 以文件为准**:reconcile 每轮强制重读,不信内存缓存——人工删行必须被看到(测试抓出缓存坑)。
+- parser 钉版本(claude-jsonl/codex-jsonl/digest-md,均 v1);>30% 行坏 → 拒绝告警不猜;新 harness = 新 parser。
+- 共享脱敏 redact.ts:密钥前缀(sk-/ghp_/github_pat_/AKIA/eyJ)+ 敏感字段名 + 截断 2048;brain-plugin.redactArgs 改为 re-export(单一实现,三应用点:工具流水 args/会话正文/导入 md)。
+- hub POST /brain/* 由 hub 读 body(JSON,受 maxBodyBytes 限制)传 handler——handler 单参契约不变,GET 不读流。
+- 会话 L0 记录:{harness, agent_label(身份 id 解析,坏值→unknown), kind:'session', session_id, digest(脱敏后), hash};manifest 幂等键 = session_id + hash。
+
 ## 2. 踩坑记录
 
 ### B3. 编辑序列中途失败 → 后续编辑全部未执行(2026-10-14)
