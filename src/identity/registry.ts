@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
+import { dirname } from 'node:path';
 import type { Identity } from '../types.js';
-import { atomicWriteFile, exists } from '../util/fsutil.js';
+import { atomicWriteFile, ensureDir, exists } from '../util/fsutil.js';
 import { identityToString, parseIdentityId } from './identity.js';
 
 /** 随机 32 字节 → base64url(M07 §2;绝不用字段拼接) */
@@ -37,6 +38,7 @@ export class TokenRegistry {
 
   private async save(): Promise<void> {
     const data: TokenFile = { schema_version: 1, tokens: Object.fromEntries(this.hashes) };
+    await ensureDir(dirname(this.filePath));
     await atomicWriteFile(this.filePath, JSON.stringify(data, null, 2) + '\n');
   }
 

@@ -48,4 +48,6 @@ export interface BrainPlugin {
   onToolEvent(evt: ToolEvent): void;             // fire-and-forget;禁止抛错
   registerRoutes?(app: RouteRegistrar): void;    // /brain/ingest、/brain/query(v1 预留)
   shutdown(): Promise<void>;                     // 停定时器、flush、关存储
+  /** v1 扩展:hub 侧 token → 身份(M07);缺失时 hub 一律按 null(访客)处理 */
+  resolveIdentity?(token: string): Identity | null;
 }

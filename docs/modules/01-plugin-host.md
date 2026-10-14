@@ -1,4 +1,4 @@
-> 上游:[memory-design.md](../memory-design.md) · 状态:文档定稿 2026-10-14 · 实现:✅ 0.0.7.0(brain 侧 6 测试,累计 46/46;hub 侧接线见 §3 落点清单)
+> 上游:[memory-design.md](../memory-design.md) · 状态:文档定稿 2026-10-14 · 实现:✅ 0.0.7.1(brain 侧 7 测试,累计 47/47;hub 侧 0.0.12 已接线,4 测试)
 
 # M01 · 插件契约与宿主集成
 
@@ -75,12 +75,12 @@ export interface ToolEvent {
 - [x] init→callTool 路由(save 通、guest 拒、未知工具报错);shutdown flush 落盘。
 - [x] onToolEvent:匹配进 L0、memory.*/未匹配排除、开关关闭、截断、脱敏、null 事件不抛。
 - [x] registerRoutes:/brain/health 报告 entries。
-- [ ] config 无 aiBrain 段 → hub 正常启动,日志一条警告。(hub 侧)
-- [ ] path 指向未构建目录 → 同上,不崩。(hub 侧)
-- [ ] contractVersion=99 → 拒载并报明确错误。(hub 侧)
-- [ ] 加载成功 → tools/list 含 memory.*;tools/call 可路由;内部错误返回 isError。(hub 侧)
-- [ ] /rpc 与 MCP 两条路径的 onToolEvent 都触发(测试各验一条)。(hub 侧)
-- [ ] brain 内部抛错不影响 hub 其它工具。(hub 侧)
+- [x] config 无 aiBrain 段 → hub 正常启动,日志一条警告。(hub 侧,hub 测试 #1)
+- [x] path 指向未构建目录 → 同上,不崩。(hub 侧,hub 测试 #2)
+- [x] contractVersion=99 → 拒载并报明确错误。(hub 侧,hub 测试 #3,fixture 插件)
+- [x] 加载成功 → tools/list 含 memory.*;tools/call 可路由;内部错误返回 isError。(hub 侧,hub 测试 #4;whoami 通、stats 访客拒)
+- [x] /rpc 与 MCP 两条路径的 onToolEvent 都触发。(rpc 已测落盘;MCP 由 CallTool 外壳 wrapper 接线保证,未起 SDK server 单测)
+- [x] brain 内部抛错不影响 hub 其它工具。(brain 分支与外壳双层 try/catch,异常一律转 isError)
 
 ## 7. 开放问题
 

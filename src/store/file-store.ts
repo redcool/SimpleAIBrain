@@ -7,7 +7,7 @@ import { slugify } from '../util/slug.js';
 import { atomicWriteFile, ensureDir, nowISO, sanitizeSeg, uniqueFile } from '../util/fsutil.js';
 import type { MemoryStore } from './types.js';
 
-const SKIP_DIRS = new Set(['_spool', '_quarantine', 'L0-log', 'recall-log']);
+const SKIP_DIRS = new Set(['_spool', '_quarantine', 'L0-log', 'recall-log', '_identity']);
 const FM_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/;
 const TMP_RE = /\.tmp-[0-9a-f]+$/;
 const SCOPES = ['session', 'agent', 'member', 'studio'];

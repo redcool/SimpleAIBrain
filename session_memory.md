@@ -57,7 +57,18 @@ SimpleAIBrain = simpleMCPServer 的记忆插件包(进程内插件,由 ai_brain_
 - 复习闭环:recall-log 立即写;access/S 强化走 ReinforceBatcher 60s 合批(WeakMap 按 store 复用,flush 供测试/退出调用)。
 - 无相关命中时回退纯 R 排序(fallback 标记);needs_review/superseded 永不进候选。
 
+### D8. M01 插件契约实现决策(2026-10-14)
+- 契约类型在 src/plugin/contract.ts 与 M01 §2 逐字对应;工厂 createBrainPlugin() 由 hub pluginHost 每次加载调一次(loader 持单例)。
+- registerRoutes 是 loader 职责、init 不自动调(测试曾因此漏调,已修);v1 只挂 /brain/health,/brain/ingest|query 留给 M06/v2。
+- onToolEvent 同步返回:memory.* 排除自身;passiveLog.enabled===false 关闭(缺省开);脱敏键正则 token|password|secret|apikey|authorization|credential;appendLog 异步 fire-and-forget 带 catch 计数。
+- resolveIdentity(token) 作为 v1 扩展方法挂在插件实例上(契约可选);TokenRegistry 落 <dataDir>/memory/_identity/tokens.json,_identity 已进 SKIP_DIRS;registry.save 自建目录。
+- 工具版本节奏:0.0.7.0 = M01 brain 侧;0.0.7.1 = resolveIdentity 扩展;hub 侧接线在 SimpleMcpServer 仓库以 0.0.12 提交。
+
 ## 2. 踩坑记录
+
+### B3. 编辑序列中途失败 → 后续编辑全部未执行(2026-10-14)
+- 【现象】0.0.7 收尾把 6 个编辑放进一次调用,主文档行匹配失败抛异常,排在后面的 package.json/VERSION/session_memory 编辑全部没跑,而提交已带 0.0.7.0 标签。
+- 【教训】(1)关键状态(版本号、状态表)的编辑与提交之间必须**再验证**(grep 实际文件);(2)长编辑链按依赖分多次调用,失败后逐项补齐而不是假设已发生;(3)测试断言版本常量能兜住这类遗漏(本次靠 hub 侧日志 v0.0.6 暴露)。
 
 ### B1. harness 报 "Stream ended without finish_reason"(2026-10-14)
 - 【现象】设计讨论期间 harness 报模型调用错误。

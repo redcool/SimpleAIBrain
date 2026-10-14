@@ -24,4 +24,4 @@ export { createBrainPlugin, redactArgs, matchesPattern } from './plugin/brain-pl
 export { relevance } from './retrieval/relevance.js';
 export { RETRIEVAL_DEFAULTS, rankCandidates, selectAndAssemble, retrieve, appendRecallLog, ReinforceBatcher, getBatcher } from './retrieval/engine.js';
 export type { RankedEntry, RankOptions, RankOutcome, AssembledContext, RetrieveOutcome } from './retrieval/engine.js';
-export const VERSION = '0.0.6';
+export const VERSION = '0.0.7';

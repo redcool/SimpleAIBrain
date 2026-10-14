@@ -40,7 +40,7 @@ test('contract: version 1, name ai-brain, exactly 8 memory.* tools', async (t) =
     assert.ok(typeof td.description === 'string' && td.description.length > 0);
     assert.ok(td.inputSchema && td.inputSchema.type === 'object');
   }
-  assert.strictEqual(mod.VERSION, '0.0.6');
+  assert.strictEqual(mod.VERSION, '0.0.7');
 });
 
 test('init + callTool: save routed with identity; guest gating via null identity', async (t) => {
@@ -111,4 +111,19 @@ test('registerRoutes: /brain/health reports entries; shutdown flushes reinforcem
   await store2.init();
   const meta = (await Array.fromAsync(store2.iterateByScope({})))[0];
   assert.strictEqual(meta.access_count, 1, 'shutdown flushed pending reinforcement to disk');
+});
+test('resolveIdentity: issued token resolves to identity; bad token null', async (t) => {
+  const { mod, plugin, ctx } = await mk(t);
+  const regPath = path.join(ctx.dataDir, 'memory', '_identity', 'tokens.json');
+  const reg = new mod.TokenRegistry(regPath);
+  await reg.load();
+  const tok = await reg.issue(mod.makeIdentity('s1', 'alice', 'builder'));
+  const plugin2 = mod.createBrainPlugin();
+  await plugin2.init(ctx);            // fresh load picks up tokens.json from disk
+  const resolved = plugin2.resolveIdentity(tok);
+  assert.ok(resolved, 'token resolves');
+  assert.strictEqual(resolved.member, 'alice');
+  assert.strictEqual(resolved.agent_label, 'builder');
+  assert.strictEqual(plugin2.resolveIdentity('not-a-real-token-aaaaaaaaaaaaaaaaaaaaaaaaaaaa'), null, 'unknown token -> null (guest)');
+  await plugin2.shutdown();
 });

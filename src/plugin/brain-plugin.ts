@@ -1,6 +1,8 @@
 import crypto from 'node:crypto';
+import { join } from 'node:path';
 import type { Identity } from '../types.js';
 import { FileStore } from '../store/file-store.js';
+import { TokenRegistry } from '../identity/registry.js';
 import { TOOL_DEFS } from '../tools/definitions.js';
 import { callTool as dispatchCallTool } from '../tools/dispatch.js';
 import { getBatcher } from '../retrieval/engine.js';
@@ -11,6 +13,7 @@ import type { BrainCtx, BrainPlugin, ToolEvent } from './contract.js';
 interface PluginState {
   ctx?: BrainCtx;
   store?: FileStore;
+  registry?: TokenRegistry;
   logged: number;
   errors: number;
 }
@@ -50,7 +53,14 @@ export function createBrainPlugin(): BrainPlugin {
       state.ctx = ctx;
       state.store = new FileStore(ctx.dataDir + '/memory');
       await state.store.init();
-      ctx.logger('[ai-brain] ready v' + VERSION + ', entries=' + state.store.size + ', quarantined=' + state.store.getQuarantined().length);
+      state.registry = new TokenRegistry(join(ctx.dataDir, 'memory', '_identity', 'tokens.json'));
+      await state.registry.load();
+      ctx.logger('[ai-brain] ready v' + VERSION + ', entries=' + state.store.size + ', identities=' + state.registry.list().length + ', quarantined=' + state.store.getQuarantined().length);
+    },
+
+    /** v1 扩展(非契约必需):hub 用 token 解析身份;解析失败 → null(访客) */
+    resolveIdentity(token: string): Identity | null {
+      return state.registry ? state.registry.resolve(token) : null;
     },
 
     getTools() {
