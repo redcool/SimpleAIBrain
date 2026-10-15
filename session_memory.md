@@ -71,6 +71,15 @@ SimpleAIBrain = simpleMCPServer 的记忆插件包(进程内插件,由 ai_brain_
 - 蒸馏幂等 = L2 已被任一 L3 引用即跳过;归并幂等 = L1 被 L2 引用即"已归并";L1 永远保留作证据。
 - 插件:init 挂 24h 定时器(unref,schedule=off 关);POST /brain/consolidate 手动触发;run 结束 gitCommitIfRepo(data/,消息含 run_id 与计数)。
 
+### D15. 价值管道首跑贯通(2026-10-15,0.0.13.2/0.0.13.3)
+- 用户令:读 hub 新工作纪律(docs/Agent工作纪律.md:短句/同名不覆盖/tmp 目录/夜班记录/版本语义),提交本会话数据并跟踪全流程。
+- 首跑暴露并修复两个真缺陷:1) M11 强制点缺失——巩固器把 spool 内容未脱敏送 LLM,补 redactText(0.0.13.2);2) LLM 契约错位——hub callLLM 收 {system?,prompt}(内部总把 prompt 作 user 消息),brain 传消息数组,在 brain-plugin 边界做完整适配(0.0.13.3)。
+- hub 配置:agnes-2.0-flash 渠道已下架(503),切 agnes-3.0-flash。
+- 全链证据:digest 经 /rpc memory.submit_session(真实 token 鉴权)→ spool 811423510171c442 → consolidate summarized:1 → L1 mem_01M4ZGYBN6WTDV4H86S9J6P7YQ(members/local/agents/simpleaibrain/L1/,source_ids 引用 hash16,created_by consolidator)→ memory.context 命中 1 条(matched:1,预算 0.2k/4k,带数据非指令横幅)→ stats L1:1,recall_7d {queries:1,hits:1}。
+- 失败语义验证:LLM 503 时巩固器记 skip、游标不动、spool 保留,重试成功——重试设计如设计工作。
+- 观察待办:抽取 LLM 把 importance 给到 1.0(偏满),M05 提示词打磨时加校准;LLM 输出偶见个别乱码字符。
+- 教训:健康轮询要等 listen 完成(本轮过早放弃误判启动失败);测试全绿≠集成契约正确(87/87 下仍有契约 bug,首跑抓出)。
+
 ### D14. 撤回/retraction 实现(2026-10-15,0.0.13.0)
 - 用户定调的语义:删会话 → 关联记忆退出;证据共享 → 幸存佐证保留,证据全灭才退出。
 - 检测:reconcile 里 manifest src='dsh' 行对照磁盘(会话工件消失=删除);目录不可达(盘未挂载)= 源不可用 → 宁可不撤。POST/hook 会话无文件,不检测。曾加"mass vanish >50% 阈值"——**误伤合法单删,已撤**(与不可用检查重复;false-positive 的 L0 可由文件回归+重登记恢复)。

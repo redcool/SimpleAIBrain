@@ -54,7 +54,19 @@ export function createBrainPlugin(): BrainPlugin {
       if (consolidCfg.schedule !== 'off') {
         state.consolidator = new Consolidator(state.store, {
           dataDir: ctx.dataDir,
-          callLLM: ctx.callLLM,
+          // hub callLLM 契约 = 请求对象 {system?, prompt, context?, messages?}(内部总是把 prompt 作为 user 消息);
+          // brain 契约 = OpenAI 风格消息数组。边界适配:提取 system/末条 user/其余轮次。
+          callLLM: (msgs) => {
+            const arr = Array.isArray(msgs) ? (msgs as Array<{ role?: string; content?: string }>) : [];
+            const sys = arr.find((m) => m && m.role === 'system');
+            const userIdx = arr.map((m) => m && m.role === 'user').lastIndexOf(true);
+            const user = userIdx >= 0 ? arr[userIdx] : undefined;
+            const rest = arr.filter((m, i) => m && m.role !== 'system' && i !== userIdx);
+            const req: Record<string, unknown> = { prompt: user && typeof user.content === 'string' ? user.content : '' };
+            if (sys && typeof sys.content === 'string') req.system = sys.content;
+            if (rest.length > 0) req.messages = rest;
+            return ctx.callLLM(req as never);
+          },
           logger: ctx.logger,
           maxSessionsPerRun: consolidCfg.maxSessionsPerRun,
         });
