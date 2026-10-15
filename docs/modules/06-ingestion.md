@@ -69,10 +69,12 @@ worker(hub 侧):
 - [ ] Codex hook 配置样例在真实 codex CLI 上触发一次成功(装机核实项,样例已交付)。
 - [x] memory.search 调用不产生工具流水记录(M01 排除逻辑已有测试)。
 
+> **撤回/retraction(0.0.13.0)**:会话删除 → 关联记忆按引用链退出(\`src/consolidation/retractor.ts\`)。检测:reconcile 对 manifest 中 \`src:'dsh'\` 的行对照磁盘,会话工件消失 = 删除(目录不可达 = 源不可用 → 宁可不撤);POST/hook 提交的会话无文件可查,不检测。执行:该会话 spool digest 删除(防未处理内容再挖矿)→ L0 行物理删除(月度 jsonl 原子重写,损坏行保留)→ 条目链:source_ids 命中死 hash16 → 剥离;**全灭** → L1 archived(可逆)/ L2 以上或 pinned/decision/importance≥0.8 → needs_review(人工确认);部分幸存 → 保留(证据共享)。false-positive 可恢复:L0 由文件回归重摄,L1 不可自动恢复 → 检测保守。已知边界:DSH 大版本迁移改目录名会被当全删——迁移前先停 hub(开放问题)。
+
 ## 9. 开放问题
 
 - claude/codex 对账的 cwd→.brain.json 登记查找(现被身份闸门拒,休眠中)
-- 撤回(retraction):会话删除 → 关联记忆按引用链退出(0.0.13.0 规划;L0 物理删、L1 无幸存来源走 forget、L2/L3 全断进 needs_review)
+- DSH 大版本迁移(会话目录改名)会被撤回检测当全删——迁移前先停 hub 或手工清 manifest
 
 - Codex transcript 落盘路径装机核实;Cursor stop payload 字段;DSH 补丁的挂点选择(session-end 事件)。
 

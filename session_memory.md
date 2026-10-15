@@ -71,6 +71,14 @@ SimpleAIBrain = simpleMCPServer 的记忆插件包(进程内插件,由 ai_brain_
 - 蒸馏幂等 = L2 已被任一 L3 引用即跳过;归并幂等 = L1 被 L2 引用即"已归并";L1 永远保留作证据。
 - 插件:init 挂 24h 定时器(unref,schedule=off 关);POST /brain/consolidate 手动触发;run 结束 gitCommitIfRepo(data/,消息含 run_id 与计数)。
 
+### D14. 撤回/retraction 实现(2026-10-15,0.0.13.0)
+- 用户定调的语义:删会话 → 关联记忆退出;证据共享 → 幸存佐证保留,证据全灭才退出。
+- 检测:reconcile 里 manifest src='dsh' 行对照磁盘(会话工件消失=删除);目录不可达(盘未挂载)= 源不可用 → 宁可不撤。POST/hook 会话无文件,不检测。曾加"mass vanish >50% 阈值"——**误伤合法单删,已撤**(与不可用检查重复;false-positive 的 L0 可由文件回归+重登记恢复)。
+- 执行(retractor.ts):spool digest 删(防未处理内容再挖矿)→ L0 行物理删(月度 jsonl 原子重写)→ 条目:命中死 hash16 → 剥离 source_ids;全灭 → L1 archived / L2+ 或 pinned/decision/importance≥0.8 → needs_review;skipped = 已 archived/superseded。
+- 链路真值:全链 source_ids 引用 digest hash16(spool 文件名=sha256(content).slice(0,16)),spool 记录自带 session_id——撤回不依赖 L0 行归属。
+- 已知边界:DSH 大版本迁移改目录名 → 全删误判,迁移前停 hub(开放问题)。测试 79 → 86。
+- live:hub 已重启载入 0.0.13;SimpleAIBrain 基站已登记(s1/local/simpleaibrain),首条真实 L0 已入。
+
 ### D13. opt-in 登记 + ignore_session_prefix + enroll(2026-10-15)
 - 用户定调:**有 .brain.json 才进记忆**——比"目录名推导身份"更好,系统不需要猜,unknown 桶消失;未登记工作区不记 manifest,以后补登记连历史一起补摄。删除文件 = 停止新增,不抹历史(清除走 M11)。
 - token 保留在 .brain.json(身份凭证分离:改名不换密码);用户不手搓随机数 → scripts/enroll.mjs(issue 随机 token + 登记 TokenRegistry + 写文件;--force 换发;已登记重跑是 no-op)。md5(身份) 方案被否:身份串非秘密,md5 可枚举,M11 防投毒塌方。

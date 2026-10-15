@@ -9,6 +9,7 @@ import { readBrainJson } from '../identity/brain-json.js';
 import type { BrainJson } from '../identity/brain-json.js';
 import { redactText } from './redact.js';
 import { decodeDshArtifact, parseDshJsonlText, extractDshMeta } from './dsh.js';
+import { deadDshSessions, retractSession } from '../consolidation/retractor.js';
 import type { DshMeta } from './dsh.js';
 import { ensureDir, nowISO } from '../util/fsutil.js';
 
@@ -95,7 +96,7 @@ export interface IngestOptions {
 
 interface Manifest {
   schema_version: 1;
-  sessions: Record<string, { hash: string; ts: string; identity?: string }>;
+  sessions: Record<string, { hash: string; ts: string; identity?: string; src?: string }>;
 }
 
 const WALK_MAX_FILES = 200;
@@ -268,7 +269,28 @@ export class IngestWorker {
           identity = identityToString(bj.identity);
         }
         const r = await this.ingestOne({ harness: d.harness, session_id, kind: 'transcript', transcript_path: f, hash, identity });
-        if (r.ok && !r.duplicate) submitted++;
+        if (r.ok) {   // duplicate 也回填 src(自愈旧行);仅新增才计数
+          if (!r.duplicate) submitted++;
+          manifest.sessions[session_id] = { hash, ts: nowISO(), identity: identity || undefined, src: d.zstd ? 'dsh' : undefined };
+          await this.saveManifest();
+        }
+      }
+    }
+    // 撤回(0.0.13.0):manifest 里 src='dsh' 的行,磁盘上会话没了 → 关联记忆按引用链退出
+    const dshEntry = dirs.find((d) => d.zstd === true);
+    if (dshEntry) {
+      const now = await this.loadManifest();
+      const scan = await deadDshSessions(now.sessions, dshEntry.dir);
+      if (scan.unavailable) {
+        this.opts.logger?.('[ai-brain] retraction skipped: dsh source unavailable (unmount?)');
+      } else if (scan.dead.length > 0) {
+        // 源可用时的删除是明确信号(单删/全删都执行;false-positive 可由文件回归 + 重登记恢复 L0)
+        const root = (this.opts.store as unknown as { root: string }).root;
+        for (const sid of scan.dead.slice(0, 50)) {
+          await retractSession(root, this.opts.store, sid, this.opts.logger);
+          delete now.sessions[sid];
+        }
+        await this.saveManifest();
       }
     }
     return submitted;
