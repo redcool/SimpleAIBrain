@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import type { Identity } from '../types.js';
 import { IdentityError, makeIdentity } from './identity.js';
 
-export interface BrainJson { identity: Identity; token: string; }
+export interface BrainJson { identity: Identity; token: string; ignore_session_prefix?: string; }
 
 /**
  * 解析项目根的 .brain.json(M07 §3):
@@ -24,5 +24,9 @@ export async function readBrainJson(file: string): Promise<BrainJson> {
   if (typeof token !== 'string' || token.length < 32) {
     throw new IdentityError('.brain.json token missing or too short (32-byte random expected)');
   }
-  return { identity: makeIdentity(o.studio, o.member, o.agent_label ?? ''), token };
+  const ignore = o.ignore_session_prefix;
+  if (ignore !== undefined && typeof ignore !== 'string') {
+    throw new IdentityError('.brain.json ignore_session_prefix must be a string (empty string disables)');
+  }
+  return { identity: makeIdentity(o.studio, o.member, o.agent_label ?? ''), token, ignore_session_prefix: ignore };
 }

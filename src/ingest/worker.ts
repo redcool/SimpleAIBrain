@@ -4,9 +4,12 @@ import os from 'node:os';
 import crypto from 'node:crypto';
 import type { MemoryStore } from '../store/types.js';
 import type { Identity } from '../types.js';
-import { parseIdentityId } from '../identity/identity.js';
+import { parseIdentityId, identityToString } from '../identity/identity.js';
+import { readBrainJson } from '../identity/brain-json.js';
+import type { BrainJson } from '../identity/brain-json.js';
 import { redactText } from './redact.js';
-import { decodeDshArtifact, parseDshJsonlText } from './dsh.js';
+import { decodeDshArtifact, parseDshJsonlText, extractDshMeta } from './dsh.js';
+import type { DshMeta } from './dsh.js';
 import { ensureDir, nowISO } from '../util/fsutil.js';
 
 /** M06 §5:parser 层。每 harness 一个,钉版本;格式漂移 → 拒绝并告警,不猜。 */
@@ -92,7 +95,7 @@ export interface IngestOptions {
 
 interface Manifest {
   schema_version: 1;
-  sessions: Record<string, { hash: string; ts: string }>;
+  sessions: Record<string, { hash: string; ts: string; identity?: string }>;
 }
 
 const WALK_MAX_FILES = 200;
@@ -158,6 +161,7 @@ export class IngestWorker {
     if (!session_id) return { ok: false, error: 'session_id required' };
     const parser = PARSERS[evt.harness];
     if (!parser) return { ok: false, error: 'unknown harness: ' + String(evt.harness) + ' (known: ' + Object.keys(PARSERS).join('/') + ')' };
+    if (!evt.identity) return { ok: false, error: 'no identity: workspace not enrolled (.brain.json)' };   // 0.0.12.0 opt-in:身份是摄入前提
     let raw = '';
     let rawBuf: Buffer | null = null;
     try {
@@ -195,7 +199,7 @@ export class IngestWorker {
       digest: redactText(text, maxChars),       // 脱敏后才落 L0(M06 §6 强制点)
       hash,
     });
-    manifest.sessions[session_id] = { hash, ts: nowISO() };
+    manifest.sessions[session_id] = { hash, ts: nowISO(), identity: evt.identity };
     await this.saveManifest();
     return { ok: true, duplicate: false, hash };
   }
@@ -251,7 +255,19 @@ export class IngestWorker {
         const manifest = await this.loadManifest();
         const seen = manifest.sessions[session_id];
         if (seen && seen.hash === hash) continue;
-        const r = await this.ingestOne({ harness: d.harness, session_id, kind: 'transcript', transcript_path: f, hash });
+        let identity: string | null = null;
+        if (d.zstd) {
+          // opt-in(0.0.12.0):工作区 .brain.json 决定摄入;cwd 取自会话头,标题取末次 session/title
+          let meta: DshMeta;
+          try { meta = extractDshMeta(decodeDshArtifact(raw)); } catch { continue; }
+          if (!meta.cwd) continue;
+          let bj: BrainJson;
+          try { bj = await readBrainJson(path.join(meta.cwd, '.brain.json')); } catch { continue; }   // 未登记/损坏 → 不摄不记 manifest(补文件即补摄历史)
+          const prefix = bj.ignore_session_prefix === undefined ? 'no_brain' : bj.ignore_session_prefix;
+          if (prefix && meta.title && meta.title.startsWith(prefix)) continue;
+          identity = identityToString(bj.identity);
+        }
+        const r = await this.ingestOne({ harness: d.harness, session_id, kind: 'transcript', transcript_path: f, hash, identity });
         if (r.ok && !r.duplicate) submitted++;
       }
     }

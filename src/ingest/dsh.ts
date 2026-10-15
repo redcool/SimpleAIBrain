@@ -76,6 +76,22 @@ function extractText(content: unknown): string {
   return '';
 }
 
+export interface DshMeta { cwd?: string; title?: string; }
+
+/** 会话头(唯一的 type=session 行,含 cwd)+ 最后一次 session/title(标题会更新,取末次) */
+export function extractDshMeta(raw: string): DshMeta {
+  const meta: DshMeta = {};
+  for (const line of raw.split('\n')) {
+    if (!line.trim()) continue;
+    if (line.indexOf('"type":"session"') === -1 && line.indexOf('"type": "session"') === -1 && line.indexOf('"type":"session/title"') === -1 && line.indexOf('"type": "session/title"') === -1) continue;
+    let obj: { type?: string; cwd?: unknown; data?: { title?: unknown } };
+    try { obj = JSON.parse(line); } catch { continue; }
+    if (obj.type === 'session' && typeof obj.cwd === 'string') meta.cwd = obj.cwd;   // v3 头:cwd 在行顶层
+    if (obj.type === 'session/title' && typeof obj.data?.title === 'string') meta.title = obj.data.title;
+  }
+  return meta;
+}
+
 /** DSH session.v3 jsonl → 对话文本('user: '/'assistant: ' 行);钉版本 1(对 v3 行形) */
 export function parseDshJsonlText(raw: string): string {
   const out: string[] = [];

@@ -71,8 +71,13 @@ worker(hub 侧):
 
 ## 9. 开放问题
 
+- claude/codex 对账的 cwd→.brain.json 登记查找(现被身份闸门拒,休眠中)
+- 撤回(retraction):会话删除 → 关联记忆按引用链退出(0.0.13.0 规划;L0 物理删、L1 无幸存来源走 forget、L2/L3 全断进 needs_review)
+
 - Codex transcript 落盘路径装机核实;Cursor stop payload 字段;DSH 补丁的挂点选择(session-end 事件)。
 
 > 实现(0.0.9.0):\`src/ingest/\` 三件 —— redact.ts(**共享脱敏**:密钥前缀形态 sk-/ghp_/AKIA/JWT + 敏感字段名 + 截断;工具流水 args/会话正文/导入 md 三应用点统一走它)、worker.ts(parser 钉版本 claude-jsonl/codex-jsonl/digest-md,漂移 >30% 拒绝不猜;ingestOne = POST 语义 → L0 + manifest;drain 排空 ingest-spool;reconcile 周期对账 transcript 目录)、hooks/brain-hook.mjs(通用 hook:读 .brain.json → POST 1.4s 硬超时 → 失败落 spool;附 claude/codex 样例配置)。manifest **以文件为准**(reconcile 每轮强制重读,人工删行会被看到);hub 侧 POST /brain/* 由 hub 读 body 传 handler(0.0.12.2)。
 >
 > DSH 通道(0.0.11.0,**零补丁**):DSH 的会话落盘是分帧追加 zstd(\`session.v3.jsonl.zstd\`,数据根 \`$DSH_HOME\` → \`~/.dsh\`)。node:zlib 内置 zstd 即可解单帧,scanZstdFrames 按 zstd 帧头/块头结构走(对齐 @deepseek-ai/dsh-session-persistence-jsonl 的实现),torn 尾帧跳过 —— watcher 把 \`$DSH_HOME/sessions\` 作为第三对账源,不碰 node_modules。**空闲闸门**(默认 10min,\`ingest.dshIdleMs\`):追加中的活跃 session 不摄,静默才提交;hash 变化(有新帧)→ 静默后重摄。session_id = session 目录名。parser v1 只取 user/assistant 的 text(reasoning 跳过)。watch.dsh 可覆盖路径或置 null 关闭。
+>
+> **opt-in 登记(0.0.12.0)**:身份是摄入的前提——ingestOne 无 identity 直接拒收;DSH 对账先解出会话头 \`cwd\`(行顶层,勿写成 data.cwd)与末次 \`session/title\`,到 \`<cwd>/.brain.json\` 读登记:无文件/损坏 → 跳过且**不记 manifest**(以后补登记连历史一起补摄)。\`ignore_session_prefix\`(默认 no_brain,置空串关闭)命中标题 → 跳过。manifest 行新增 identity 字段。claude/codex 对账暂无 cwd→登记查找,被身份闸门拒(休眠,开放问题)。enroll 命令见 M07 §3.1。

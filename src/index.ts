@@ -26,10 +26,10 @@ export type { ExtractOut, MergeOut, DistillOut } from './consolidation/prompts.j
 export { Consolidator } from './consolidation/consolidator.js';
 export type { ConsolidatorOptions, RunReport, SkippedSession } from './consolidation/consolidator.js';
 export { IngestWorker, PARSERS, sha256hex, dshHome } from './ingest/worker.js';
-export { scanZstdFrames, decodeDshArtifact, parseDshJsonlText } from './ingest/dsh.js';
+export { scanZstdFrames, decodeDshArtifact, parseDshJsonlText, extractDshMeta } from './ingest/dsh.js';
 export type { Parser, IngestEvent, IngestOptions } from './ingest/worker.js';
 export { redactText, SECRET_KEY_RE } from './ingest/redact.js';
 export { relevance } from './retrieval/relevance.js';
 export { RETRIEVAL_DEFAULTS, rankCandidates, selectAndAssemble, retrieve, appendRecallLog, ReinforceBatcher, getBatcher } from './retrieval/engine.js';
 export type { RankedEntry, RankOptions, RankOutcome, AssembledContext, RetrieveOutcome } from './retrieval/engine.js';
-export const VERSION = '0.0.11';
+export const VERSION = '0.0.12';

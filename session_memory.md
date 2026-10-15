@@ -71,6 +71,14 @@ SimpleAIBrain = simpleMCPServer 的记忆插件包(进程内插件,由 ai_brain_
 - 蒸馏幂等 = L2 已被任一 L3 引用即跳过;归并幂等 = L1 被 L2 引用即"已归并";L1 永远保留作证据。
 - 插件:init 挂 24h 定时器(unref,schedule=off 关);POST /brain/consolidate 手动触发;run 结束 gitCommitIfRepo(data/,消息含 run_id 与计数)。
 
+### D13. opt-in 登记 + ignore_session_prefix + enroll(2026-10-15)
+- 用户定调:**有 .brain.json 才进记忆**——比"目录名推导身份"更好,系统不需要猜,unknown 桶消失;未登记工作区不记 manifest,以后补登记连历史一起补摄。删除文件 = 停止新增,不抹历史(清除走 M11)。
+- token 保留在 .brain.json(身份凭证分离:改名不换密码);用户不手搓随机数 → scripts/enroll.mjs(issue 随机 token + 登记 TokenRegistry + 写文件;--force 换发;已登记重跑是 no-op)。md5(身份) 方案被否:身份串非秘密,md5 可枚举,M11 防投毒塌方。
+- ignore_session_prefix(默认 no_brain,置空串关):会话标题(末次 session/title)命中前缀 → 永不摄入;无标题会话不忽略。
+- ingestOne 身份闸门在 parser 校验之后(unknown harness 错误优先);claude/codex 对账暂无 cwd 查找 → 休眠(M06 开放问题)。
+- 实现坑:v3 会话头 cwd 在**行顶层**,不是 data.cwd(真实文件验证抓出);manifest 行新增 identity 字段。干跑验证:真实会话复制(未登记)跳过,登记合成会话按身份摄入。
+- 测试 77 → 79;brain 0.0.12.0。hub(PID 38244)仍是 10/13 老进程,需重启才加载 brain 0.0.12.x;用户重启后:health、enroll SimpleAIBrain、验证首轮真实摄入。
+
 ### D12. DSH 通道接入决策(2026-10-14,v1 后增补)
 - 用户实况:主力 harness = DSH(Codex 也跑在 DSH 内)→ M06 矩阵的 DSH 行才是真正吃到的摄入路径;Claude/Codex CLI hook 样例保留但不急。
 - **零补丁**:DSH 会话 = 分帧追加 zstd(session.v3.jsonl.zstd,~/.dsh 即 $DSH_HOME);node:zlib 内置 zstdDecompressSync 解单帧,scanZstdFrames 照 zstd 帧结构走(帧头 descriptor/块头 walk,对齐 dsh-session-persistence-jsonl),torn 尾帧跳过 → brain watcher 直接对账,不改 DSH node_modules(避免重打补丁负担)。

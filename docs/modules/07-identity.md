@@ -30,6 +30,19 @@
 - 映射表维护:hub config 或独立 tokens 文件(hub 侧管理,非 brain 职责);brain 的 callTool/id 参数由 hub 填好传入。
 - `memory.whoami`:调试用,返回当前解析出的身份与权限集。
 
+### 3.1 enroll:一条命令完成登记(0.0.12.0)
+
+用户**永远不手搓随机数**——token 由记忆系统生成(crypto.randomBytes(32),等同 agent 的 apikey,由用户妥善保存 .brain.json):
+
+```bash
+node H:/ai_works/SimpleAIBrain/scripts/enroll.mjs <工作区目录> [--studio s1] [--member local] [--agent <名>] [--data-dir <hub data>]
+```
+
+- 签发随机 token → 登记 TokenRegistry(<data>/memory/_identity/tokens.json,存哈希)→ 写 .brain.json
+- 已登记再跑:只打印现况不改任何东西;--force 换发新 token(rotate,身份不变);hub 运行中登记需重启后生效
+- 工作区策略字段 "ignore_session_prefix": "no_brain"(M06):会话标题命中前缀 → 永不摄入;置空串关闭
+- **opt-in 语义(0.0.12.0)**:有 .brain.json 才进记忆;没有(或删除)= 停止新增,不抹历史(清除走 M11)
+
 ## 4. 权限矩阵
 
 | 操作 | agent token | member token | 访客(null) |

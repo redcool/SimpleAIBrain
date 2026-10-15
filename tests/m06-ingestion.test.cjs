@@ -44,7 +44,7 @@ test('ingest via transcript_path: parsed, redacted, L0 logged, manifest recorded
   const { mod, store, worker, dataDir, root } = await mk(t);
   const transcript = path.join(root, 't1.jsonl');
   await fsp.writeFile(transcript, JSON.stringify({ type: 'user', message: { content: 'please set key sk-ABCDEFGHIJKLMNOP123456' } }) + '\n' + JSON.stringify({ type: 'assistant', message: { content: 'ok, using it' } }) + '\n');
-  const r = await worker.ingestOne({ harness: 'claude-jsonl', session_id: 'sA', transcript_path: transcript });
+  const r = await worker.ingestOne({ harness: 'claude-jsonl', session_id: 'sA', transcript_path: transcript, identity: 's1/alice/builder' });
   assert.strictEqual(r.ok, true);
   assert.match(r.hash, /^[0-9a-f]{64}$/);
   const l0 = await readL0(store);
@@ -63,8 +63,8 @@ test('idempotent: same session+hash -> duplicate, no second L0 line', async (t) 
   const { store, worker, root } = await mk(t);
   const p = path.join(root, 't2.jsonl');
   await fsp.writeFile(p, JSON.stringify({ type: 'user', message: { content: 'hello world' } }) + '\n');
-  await worker.ingestOne({ harness: 'claude-jsonl', session_id: 'sB', transcript_path: p });
-  const r2 = await worker.ingestOne({ harness: 'claude-jsonl', session_id: 'sB', transcript_path: p });
+  await worker.ingestOne({ harness: 'claude-jsonl', session_id: 'sB', transcript_path: p, identity: 's1/alice/builder' });
+  const r2 = await worker.ingestOne({ harness: 'claude-jsonl', session_id: 'sB', transcript_path: p, identity: 's1/alice/builder' });
   assert.strictEqual(r2.ok, true);
   assert.strictEqual(r2.duplicate, true);
   assert.strictEqual((await readL0(store)).length, 1);
@@ -77,7 +77,7 @@ test('unknown harness and parser drift are rejected, not guessed', async (t) => 
   assert.ok(bad.error.indexOf('unknown harness') !== -1);
   const drift = path.join(root, 'drift.jsonl');
   await fsp.writeFile(drift, Array.from({ length: 10 }, (_, i) => 'not-json-' + i).join('\n'));
-  const r = await worker.ingestOne({ harness: 'claude-jsonl', session_id: 'sX', transcript_path: drift });
+  const r = await worker.ingestOne({ harness: 'claude-jsonl', session_id: 'sX', transcript_path: drift, identity: 's1/alice/builder' });
   assert.strictEqual(r.ok, false);
   assert.ok(r.error.indexOf('format drift') !== -1);
 });
@@ -87,7 +87,7 @@ test('spool drain: hook note replayed and removed; re-drain adds nothing', async
   const spool = path.join(dataDir, 'ingest-spool');
   await fsp.mkdir(spool, { recursive: true });
   const note = path.join(spool, 'note1.json');
-  await fsp.writeFile(note, JSON.stringify({ harness: 'digest-md', session_id: 'sC', kind: 'transcript', content: 'offline notes with ghp_AAAABBBBCCCCDDDDEEEE1111' }));
+  await fsp.writeFile(note, JSON.stringify({ harness: 'digest-md', session_id: 'sC', kind: 'transcript', content: 'offline notes with ghp_AAAABBBBCCCCDDDDEEEE1111', identity: 's1/alice/builder' }));
   assert.strictEqual(await worker.drain(), 1);
   const l0 = await readL0(store);
   assert.strictEqual(l0.length, 1);
@@ -98,23 +98,18 @@ test('spool drain: hook note replayed and removed; re-drain adds nothing', async
   assert.strictEqual((await readL0(store)).length, 1);
 });
 
-test('reconcile: watch dir submitted; manifest row deleted -> resubmitted', async (t) => {
+test('reconcile claude: unenrolled identity rejected (dormant until cwd lookup)', async (t) => {
   const { mod, store, dataDir, root } = await mk(t);
   const worker = new mod.IngestWorker({ dataDir, store, logger: function () {}, watch: { claude: path.join(root, 'watch'), codex: null, dsh: null } });
   const proj = path.join(root, 'watch', 'proj1');
   await fsp.mkdir(proj, { recursive: true });
   const f1 = path.join(proj, 'uuid-1111.jsonl');
   await fsp.writeFile(f1, JSON.stringify({ type: 'user', message: { content: 'watched session' } }) + '\n');
-  assert.strictEqual(await worker.reconcile(), 1);
-  const mf = await readManifest(dataDir);
-  assert.ok(mf.sessions['uuid-1111'], 'manifest recorded');
-  // 手工删 manifest 一行 → 下轮对账补交(M06 §8)
-  const raw = JSON.parse(await fsp.readFile(path.join(dataDir, 'ingest-manifest.json'), 'utf8'));
-  delete raw.sessions['uuid-1111'];
-  await fsp.writeFile(path.join(dataDir, 'ingest-manifest.json'), JSON.stringify(raw));
-  assert.strictEqual(await worker.reconcile(), 1, 'resubmitted after manifest row deleted');
-  const lines = (await readL0(store)).filter((x) => x.session_id === 'uuid-1111');
-  assert.strictEqual(lines.length, 2);
+  // 0.0.12.0 opt-in:claude/codex 对账暂无 cwd→.brain.json 查找,摄入被身份闸门拒(休眠;DSH 通道承接对账覆盖)
+  assert.strictEqual(await worker.reconcile(), 0);
+  const mfRaw = await fsp.readFile(path.join(dataDir, 'ingest-manifest.json'), 'utf8').catch(() => null);
+  assert.strictEqual(mfRaw, null, 'manifest not even created for unenrolled');
+  assert.strictEqual((await readL0(store)).length, 0);
   assert.strictEqual(await worker.reconcile(), 0, 'steady state: no resubmission');
 });
 

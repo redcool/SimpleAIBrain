@@ -98,7 +98,7 @@ test('M11 redaction: three sources (tool args / session body / imported md) all 
   const body = mod.redactText('key is sk-ABCDEFGHIJKLMNOP123456 in chat', 2048);
   assert.ok(body.indexOf('sk-ABCD') === -1, 'session body masked');
   const worker = new mod.IngestWorker({ dataDir, store, logger: function () {}, watch: { claude: null, codex: null } });
-  const r = await worker.ingestOne({ harness: 'digest-md', session_id: 'sM', content: '# imported notes\napi key ghp_AAAABBBBCCCCDDDDEEEE1111' });
+  const r = await worker.ingestOne({ harness: 'digest-md', session_id: 'sM', content: '# imported notes\napi key ghp_AAAABBBBCCCCDDDDEEEE1111', identity: 's1/alice/builder' });
   assert.strictEqual(r.ok, true, 'imported md ingested');
   const l0dir = path.join(store.root, 'L0-log');
   const months = await fsp.readdir(l0dir);

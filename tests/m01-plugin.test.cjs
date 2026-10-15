@@ -40,7 +40,7 @@ test('contract: version 1, name ai-brain, exactly 8 memory.* tools', async (t) =
     assert.ok(typeof td.description === 'string' && td.description.length > 0);
     assert.ok(td.inputSchema && td.inputSchema.type === 'object');
   }
-  assert.strictEqual(mod.VERSION, '0.0.11');
+  assert.strictEqual(mod.VERSION, '0.0.12');
 });
 
 test('init + callTool: save routed with identity; guest gating via null identity', async (t) => {

@@ -74,7 +74,7 @@ R < 地板值 → status = archived       可逆,显式搜索可命中
 | [M03 记忆模型](modules/03-memory-model.md) | ✅ 定稿 | 分层、存活评分、升层证据、冲突消解 | ✅ 0.0.3.0 | ✅ 20/20 |
 | [M04 检索与注入](modules/04-retrieval.md) | ✅ 定稿 | 打分扇出、预算组装、检索即复习 | ✅ 0.0.6.0 | ✅ 40/40 |
 | [M05 巩固](modules/05-consolidation.md) | ✅ 定稿 | 定时摘要/升层/矛盾消解,幂等可续跑 | ✅ 0.0.8.0 | ✅ 57/57 |
-| [M06 会话摄入](modules/06-ingestion.md) | ✅ 定稿 | hook 便签→POST→spool→watcher;被动流水;脱敏 | ✅ 0.0.9.0 | ✅ 64/64 |
+| [M06 会话摄入](modules/06-ingestion.md) | ✅ 定稿 | hook 便签→POST→spool→watcher;被动流水;脱敏;**opt-in 登记 + ignore_session_prefix + DSH 零补丁通道** | ✅ 0.0.12.0 | ✅ 79/79 |
 | [M07 身份与权限](modules/07-identity.md) | ✅ 定稿 | ID/token 模型、.brain.json、权限闸门 | ✅ 0.0.4.0 | ✅ 27/27 |
 | [M08 工具面](modules/08-tools.md) | ✅ 定稿 | memory.* 工具契约(agent 可见部分) | ✅ 0.0.5.0 | ✅ 34/34 |
 | [M09 部署与联邦](modules/09-federation.md) | ✅ 定稿 | Tier 0-3、读联邦、发布流(v2/v3 实现) | ⬜ v2 起 | ⬜ |
