@@ -69,6 +69,8 @@ worker(hub 侧):
 - [ ] Codex hook 配置样例在真实 codex CLI 上触发一次成功(装机核实项,样例已交付)。
 - [x] memory.search 调用不产生工具流水记录(M01 排除逻辑已有测试)。
 
+> **已知取舍:L0 快照重复**——会话每次静默后增长,重摄是整文件新快照(manifest 只存最新 hash),L0 按快照累积;当前 L0 无下游消费者,纯存储噪声;v2 方向:增量帧摄取(新文本严格前缀延伸旧文本)。另:SUBMIT_CAP 早退会顺延撤回段到下轮(良性)。
+>
 > **撤回/retraction(0.0.13.0)**:会话删除 → 关联记忆按引用链退出(\`src/consolidation/retractor.ts\`)。检测:reconcile 对 manifest 中 \`src:'dsh'\` 的行对照磁盘,会话工件消失 = 删除(目录不可达 = 源不可用 → 宁可不撤);POST/hook 提交的会话无文件可查,不检测。执行:该会话 spool digest 删除(防未处理内容再挖矿)→ L0 行物理删除(月度 jsonl 原子重写,损坏行保留)→ 条目链:source_ids 命中死 hash16 → 剥离;**全灭** → L1 archived(可逆)/ L2 以上或 pinned/decision/importance≥0.8 → needs_review(人工确认);部分幸存 → 保留(证据共享)。false-positive 可恢复:L0 由文件回归重摄,L1 不可自动恢复 → 检测保守。已知边界:DSH 大版本迁移改目录名会被当全删——迁移前先停 hub(开放问题)。
 
 ## 9. 开放问题

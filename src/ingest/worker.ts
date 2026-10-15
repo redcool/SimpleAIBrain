@@ -243,7 +243,7 @@ export class IngestWorker {
     for (const d of dirs) {
       const files = await this.walkJsonl(d.dir, d.zstd === true);
       for (const f of files) {
-        if (submitted >= SUBMIT_CAP_PER_CYCLE) return submitted;
+        if (submitted >= SUBMIT_CAP_PER_CYCLE) return submitted;   // 早退:撤回段顺延到下轮(良性,manifest 行还在)
         if (d.idleMs) {
           // DSH 活跃闸门:追加中的 session 不摄(防反复全文重摄);静默超阈值才提交
           try { const st = await fs.stat(f); if (Date.now() - st.mtimeMs < d.idleMs) continue; } catch { continue; }
