@@ -71,6 +71,14 @@ SimpleAIBrain = simpleMCPServer 的记忆插件包(进程内插件,由 ai_brain_
 - 蒸馏幂等 = L2 已被任一 L3 引用即跳过;归并幂等 = L1 被 L2 引用即"已归并";L1 永远保留作证据。
 - 插件:init 挂 24h 定时器(unref,schedule=off 关);POST /brain/consolidate 手动触发;run 结束 gitCommitIfRepo(data/,消息含 run_id 与计数)。
 
+### D17. M05 首跑打磨 + L1→L2 实测(2026-10-15,0.0.13.5)
+- 回填 5 条主题 digest(存储/检索/巩固/摄入/身份安全,全部出自本会话真实决策,session_id 如实标 session-b2fe0496)经 /rpc 真实提交。
+- 三修:抽取输出加 title(LLM 主题标题,告别 session-id 标题);importance 标尺进 COMMON(0.9-1.0 仅限关键决策——校准生效,新条目 0.9-0.95,不再满 1.0);parseJsonOut 尾逗号修复通道(merge LLM 首跑即产出非法 JSON,实锤需要)。
+- hub llm.maxTokens 1024→4096:6 条 L1 的合并 JSON 在 1024 下截断("no JSON object"真因)。
+- L1→L2 实测:merged:4(6 L1 → 4 L2,source_ids 引用 member L1 id)。空转 run 全零幂等 ✓。
+- **教训:我误读设计**——以为 member L1 被归并后应转 superseded,加了"吸收"逻辑,测试 "L1 evidence kept" 拦下:保持 active 是 M05 既定语义(证据保留,重复归并由 referenced 集合防)。已复原并把设计显式写进 M05 文档。测试在保护设计时,先怀疑自己再怀疑代码。
+- 终态:L1 x6(全部 active)+ L2 x4;memory 基站 10 条目。提交 3594a72。
+
 ### D16. hub llm 渠道回退链 + 运维教训(2026-10-15,hub 0.0.13.0/1bf45e7)
 - 用户定调:callLLM 开放给用户换信任的 LLM(自有 baseUrl/model/apiKey)。实现:config.json llm 段加 fallbacks(≤3,按序尝试);llm.ts 拆为 callLLM(解析链)+ callLLMWithEndpoints(可测执行器)+ attemptLLM(单渠道);渠道失败记 [LLM] 日志,全灭抛聚合错误;启动日志打生效链。对 brain 零改动(契约不变)。
 - 测试 3 个(mock HTTP 服务,不碰真配置);hub 套件 27/27;configuration.md 补「llm 渠道链」节;AGENTS.md 已更新。活配置:agnes-3.0-flash 主 + agnes-2.5-flash 回退。
