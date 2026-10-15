@@ -11,6 +11,8 @@
 // --force: issue a NEW token and rewrite .brain.json (old token stays valid until revoked).
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import fs2 from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { makeIdentity, identityToString, normalizeSegment, TokenRegistry } from '../dist/index.js';
 
 const argv = process.argv.slice(2);
@@ -24,7 +26,17 @@ for (let i = 0; i < argv.length; i++) {
   } else pos.push(argv[i]);
 }
 const ws = path.resolve(pos[0] || process.cwd());
-const dataDir = path.resolve(flags['data-dir'] || process.env.DSH_BRAIN_DATA || 'H:/ai_works/SimpleMcpServer/data');
+// data-dir 探测顺序:$DSH_BRAIN_DATA → 显式 flag → hub config(aiBrain.dataDir ?? aiBrain.path/data)→ SimpleMcpServer/data 兜底
+function defaultDataDir() {
+  try {
+    const hubCfg = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'SimpleMcpServer', 'config.json');
+    const c = JSON.parse(fs2.readFileSync(hubCfg, 'utf8'));
+    if (c.aiBrain && c.aiBrain.dataDir) return c.aiBrain.dataDir;
+    if (c.aiBrain && c.aiBrain.path) return path.join(c.aiBrain.path, 'data');
+  } catch { /* 探测失败走兜底 */ }
+  return 'H:/ai_works/SimpleMcpServer/data';
+}
+const dataDir = path.resolve(flags['data-dir'] || process.env.DSH_BRAIN_DATA || defaultDataDir());
 const bjPath = path.join(ws, '.brain.json');
 
 let existing = null;
