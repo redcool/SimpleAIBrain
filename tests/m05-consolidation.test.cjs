@@ -192,3 +192,22 @@ test('singleton lock: concurrent second run reports singletonSkipped', async (t)
   assert.strictEqual(r1.summarized, 1);
   assert.strictEqual(r2.singletonSkipped, true, 'second concurrent run declined');
 });
+
+test('M11 mandatory: spool content redacted before LLM extract (secrets never leave)', async (t) => {
+  const { mod, store, consolidator, dataDir, state } = await mk(t);
+  const seenPrompts = [];
+  const orig = consolidator.opts.callLLM;
+  state.capture = true;
+  // 包一层捕获 prompt
+  const capped = new mod.Consolidator(store, Object.assign({ dataDir, logger: function () {} }, { callLLM: async function (msgs, o) { seenPrompts.push(String(msgs[0].content)); return orig(msgs, o); } }));
+  const secret = 'the key is sk-ABCDEFGHIJKLMNOP123456 keep it safe';
+  const full = crypto.createHash('sha256').update(secret, 'utf8').digest('hex');
+  await fsp.mkdir(path.join(store.root, '_spool'), { recursive: true });
+  await fsp.writeFile(path.join(store.root, '_spool', full.slice(0, 16) + '.json'), JSON.stringify({ ts: NOW.toISOString(), session_id: 'sec-sess', kind: 'digest', hash: full, identity: 's1/alice/builder', content: secret }));
+  await capped.run();
+  assert.strictEqual(seenPrompts.length >= 1, true, 'LLM was called');
+  const extractPromptText = seenPrompts.find(function (p) { return p.indexOf('[任务:抽取]') === 0; });
+  assert.ok(extractPromptText, 'extract prompt captured');
+  assert.ok(extractPromptText.indexOf('sk-ABCDEFGHIJKLMNOP') === -1, 'raw secret absent from prompt');
+  assert.ok(extractPromptText.indexOf('[REDACTED]') !== -1, 'redaction marker present');
+});

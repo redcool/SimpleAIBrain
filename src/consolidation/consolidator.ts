@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { redactText } from '../ingest/redact.js';
 import type { Entry, EntryMeta, Identity, MemoryKind, Scope } from '../types.js';
 import type { MemoryStore } from '../store/types.js';
 import { decaySweep } from '../model/scoring.js';
@@ -175,7 +176,9 @@ export class Consolidator {
       }
       try {
         const identity = safeParseIdentity(rec.identity);
-        const out = await this.llm<ExtractOut>(extractPrompt({ sessionId: String(rec.session_id || hash16), kind: String(rec.kind || 'digest'), content: String(rec.content) }), 'extract');
+        // M11 强制点:会话正文先脱敏再出网(LLM);截断沿用入库同款上限
+        const safeContent = redactText(String(rec.content), 2048);
+        const out = await this.llm<ExtractOut>(extractPrompt({ sessionId: String(rec.session_id || hash16), kind: String(rec.kind || 'digest'), content: safeContent }), 'extract');
         if (!out || typeof out.summary !== 'string' || !out.summary.trim()) throw new Error('extract: empty summary');
         const facts = Array.isArray(out.facts) ? out.facts : [];
         const importance = facts.length ? clamp01(Math.max(...facts.map((x) => x.importance)), 0.5) : 0.5;
