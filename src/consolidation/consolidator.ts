@@ -187,7 +187,7 @@ export class Consolidator {
         const owner = { member: identity ? identity.member : 'unknown', agent: identity ? identity.agent_label : '' };
         const id = await this.store.upsertEntry({
           schema_version: 1, id: '', layer: 1, scope, owner,
-          title: 'session ' + String(rec.session_id || hash16),
+          title: (typeof out.title === 'string' && out.title.trim()) ? out.title.trim().slice(0, 60) : 'session ' + String(rec.session_id || hash16),
           kind: asKind(rec.kind, 'event'),
           importance, stability: 1.0, access_count: 0,
           last_access: nowISO(), status: 'active', pinned: false,
@@ -248,6 +248,7 @@ export class Consolidator {
           if (g && !sources.includes(g.id)) sources.push(g.id);
         }
         if (sources.length === 0) continue;     // 无出处不写(宁缺毋滥)
+        // 设计(M05):member L1 归并后保持 active 作为证据;重复归并由 referenced 集合防(L2 的 source_ids 引用)
         await this.store.upsertEntry({
           schema_version: 1, id: '', layer: 2, scope: 'member',
           owner: { member, agent: '' },

@@ -49,6 +49,10 @@
 - [x] 矛盾:decision/高优进 needs_review,低优被 supersede(引擎裁定,新条目继承溯源链)。
 - [x] run 结束后 data/ 有 git commit(消息含 run_id 与计数)。
 
+> **实现注记(0.0.13.5,首跑打磨)**:抽取输出新增 \`title\`(LLM 生成主题标题,缺省回退 \`session <id>\`);importance 标尺写入通用约束(0.9-1.0 仅限不可再得的关键决策,常见 0.5-0.8);\`parseJsonOut\` 增加尾逗号修复通道(LLM 输出最常见的非法 JSON 形态)。归并实测 6 条 L1 → 4 条 L2。运行配比:hub \`llm.maxTokens\` 需 ≥4096——1024 会把 6 条 L1 的合并 JSON 截断成非法输出。
+>
+> **设计澄清(易误读)**:member L1 被 L2 归并后**保持 active**,作为证据继续存在;重复归并由 \`referenced\` 集合防(L2 的 \`source_ids\` 引用 member L1 的 id)。曾尝试"吸收后转 superseded"被测试 \`L1 evidence kept\` 拦下——那是设计,不是缺陷。
+
 ## 7. 开放问题
 
 - 提示词的具体措辞与 few-shot;用 stats + 命中日志盲调是禁忌,实现后每周人工抽查(见 M10)。

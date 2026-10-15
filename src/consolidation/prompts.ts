@@ -1,8 +1,9 @@
 /** M05 §4:四段提示词(骨架;措辞细节实现期打磨)。统一约束:只输出 JSON、事实带出处、不确定标低 importance。 */
 
-const COMMON = '通用约束:只输出 JSON(不要 markdown 代码块);每条事实必须带出处(会话 id 或条目 id);不确定的内容 importance 标 ≤0.3,宁缺毋滥;中文输出。';
+const COMMON = '通用约束:只输出 JSON(不要 markdown 代码块);每条事实必须带出处(会话 id 或条目 id);不确定的内容 importance 标 ≤0.3,宁缺毋滥;importance 标尺:0.9-1.0 仅限不可再得的关键决策或事故教训,常见工作事实 0.5-0.8,细节与可从别处再得的信息 ≤0.5;中文输出。';
 
 export interface ExtractOut {
+  title?: string;            // LLM 生成的主题标题;缺省回退 session <id>
   summary: string;
   facts: { text: string; importance: number; kind?: string }[];
 }
@@ -22,7 +23,7 @@ const FENCE = String.fromCharCode(96).repeat(3);   // markdown 代码围栏(避�
 export function extractPrompt(input: { sessionId: string; kind: string; content: string }): string {
   return '[任务:抽取]\n' +
     '从下面的会话记录中提取:发生了什么、决定了什么、学会了什么。\n' +
-    '输出 JSON:{"summary": "≤300字摘要,必须引用会话 id ' + input.sessionId + '", "facts": [{"text": "一句一事", "importance": 0-1, "kind": "fact|decision|preference"}]}\n' +
+    '输出 JSON:{"title": "≤24字主题标题(概括决定/主题,不要照抄会话 id)", "summary": "≤300字摘要,必须引用会话 id ' + input.sessionId + '", "facts": [{"text": "一句一事", "importance": 0-1, "kind": "fact|decision|preference"}]}\n' +
     '会话 id: ' + input.sessionId + '\n' +
     '类型: ' + input.kind + '\n' +
     '--- 会话记录开始 ---\n' + input.content.slice(0, 16000) + '\n--- 会话记录结束 ---\n' + COMMON;
@@ -56,8 +57,15 @@ export function parseJsonOut<T>(raw: string, task: string): T {
   if (start === -1 || end <= start) throw new Error(task + ': LLM output has no JSON object');
   s = s.slice(start, end + 1);
   let parsed: unknown;
-  try { parsed = JSON.parse(s); } catch (e) {
-    throw new Error(task + ': LLM output is not valid JSON (' + (e instanceof Error ? e.message : String(e)) + ')');
+  try {
+    parsed = JSON.parse(s);
+  } catch (firstErr) {
+    // 修复通道 1:LLM 常见尾逗号 {..,} / [..,]
+    try {
+      parsed = JSON.parse(s.replace(/,(\s*[}\]])/g, '$1'));
+    } catch {
+      throw new Error(task + ': LLM output is not valid JSON (' + (firstErr instanceof Error ? firstErr.message : String(firstErr)) + ')');
+    }
   }
   if (parsed === null || typeof parsed !== 'object') throw new Error(task + ': LLM output is not an object');
   return parsed as T;

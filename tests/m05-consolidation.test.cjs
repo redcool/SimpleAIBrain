@@ -25,7 +25,7 @@ async function mk(t, opts) {
       const m = prompt.match(/会话 id: (\S+)/);
       const sid = m ? m[1] : 's';
       if (state.extractFail.has(sid)) throw new Error('LLM down for ' + sid);
-      return JSON.stringify({ summary: 'session ' + sid + ' 决定采用增量方案(出处: session ' + sid + ')', facts: [{ text: sid + ': 用 ULID 作主键', importance: 0.6, kind: 'fact' }] });
+      return JSON.stringify(Object.assign({ summary: 'session ' + sid + ' 决定采用增量方案(出处: session ' + sid + ')', facts: [{ text: sid + ': 用 ULID 作主键', importance: 0.6, kind: 'fact' }] }, state.extractTitle ? { title: state.extractTitle } : {}));
     }
     if (prompt.indexOf('[任务:去重合并') === 0) {
       return JSON.stringify(state.mergeOut || { merges: [], conflicts: [] });
@@ -210,4 +210,27 @@ test('M11 mandatory: spool content redacted before LLM extract (secrets never le
   assert.ok(extractPromptText, 'extract prompt captured');
   assert.ok(extractPromptText.indexOf('sk-ABCDEFGHIJKLMNOP') === -1, 'raw secret absent from prompt');
   assert.ok(extractPromptText.indexOf('[REDACTED]') !== -1, 'redaction marker present');
+});
+
+test('extract: LLM-generated title becomes entry title; fallback keeps session id', async (t) => {
+  const { mod, store, consolidator, dataDir, state } = await mk(t);
+  const full = crypto.createHash('sha256').update('titled digest', 'utf8').digest('hex');
+  await fsp.mkdir(path.join(store.root, '_spool'), { recursive: true });
+  await fsp.writeFile(path.join(store.root, '_spool', full.slice(0, 16) + '.json'), JSON.stringify({ ts: NOW.toISOString(), session_id: 'title-sess', kind: 'digest', hash: full, identity: 's1/alice/builder', content: 'titled digest content' }));
+  state.extractTitle = '记忆系统接入决策';
+  await consolidator.run();
+  let titled = null;
+  for await (const e of store.scanMeta()) if (e.source_ids.indexOf(full.slice(0, 16)) !== -1) titled = e;
+  assert.ok(titled, 'entry created');
+  assert.strictEqual(titled.title, '记忆系统接入决策');
+});
+
+test('parseJsonOut repairs trailing commas in LLM output', async () => {
+  const { mod } = await mk();
+  const raw = '{ "merges": [ { "title": "a", "from": [1, 2,], "importance": 0.7, }, ], "conflicts": [], }';
+  const out = mod.parseJsonOut(raw, 'merge');
+  assert.strictEqual(out.merges.length, 1);
+  assert.strictEqual(out.merges[0].from.length, 2);
+  assert.throws(() => mod.parseJsonOut('{ "a": [1, 2 }', 'merge'), /not valid JSON/);   // 有大括号但内部结构坏 → 修复通道救不了
+  assert.throws(() => mod.parseJsonOut('no braces here', 'merge'), /no JSON object/);
 });
