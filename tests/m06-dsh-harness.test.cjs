@@ -165,6 +165,12 @@ test('enroll script: writes .brain.json, registers token, refuses re-run without
   const dataDir = path.join(root, 'hubdata');
   const script = path.join(__dirname, '..', 'scripts', 'enroll.mjs');
   const out1 = execFileSync(process.execPath, [script, wsDir, '--data-dir', dataDir], { encoding: 'utf8' });
+  // 大写目录名自动规范化(用户不出错)
+  const wsCap = path.join(root, 'MyProject');
+  await fsp.mkdir(wsCap, { recursive: true });
+  execFileSync(process.execPath, [script, wsCap, '--data-dir', dataDir], { encoding: 'utf8' });
+  const bjCap = JSON.parse(await fsp.readFile(path.join(wsCap, '.brain.json'), 'utf8'));
+  assert.strictEqual(bjCap.agent_label, 'myproject', 'uppercase dir name normalized');
   assert.ok(out1.indexOf('[enroll] wrote') !== -1, 'script reports write');
   const bj = JSON.parse(await fsp.readFile(path.join(wsDir, '.brain.json'), 'utf8'));
   assert.strictEqual(bj.studio, 's1');

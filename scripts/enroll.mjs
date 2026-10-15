@@ -11,7 +11,7 @@
 // --force: issue a NEW token and rewrite .brain.json (old token stays valid until revoked).
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { makeIdentity, identityToString, TokenRegistry } from '../dist/index.js';
+import { makeIdentity, identityToString, normalizeSegment, TokenRegistry } from '../dist/index.js';
 
 const argv = process.argv.slice(2);
 const flags = {};
@@ -35,7 +35,8 @@ if (existing && existing.token && !flags.force) {
   process.exit(0);
 }
 
-const identity = makeIdentity(flags.studio || 's1', flags.member || 'local', flags.agent || path.basename(ws));
+// 大写/空格等工作区名自动规范化(用户不出错);显式 flag 同样规范化
+const identity = makeIdentity(normalizeSegment(flags.studio || 's1'), normalizeSegment(flags.member || 'local'), normalizeSegment(flags.agent || path.basename(ws), true));
 const registry = new TokenRegistry(path.join(dataDir, 'memory', '_identity', 'tokens.json'));
 await registry.load();
 const token = await registry.issue(identity);
