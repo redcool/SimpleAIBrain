@@ -13,6 +13,9 @@ import { ensureDir, nowISO } from '../util/fsutil.js';
 
 const KIND_SET = new Set(['fact', 'preference', 'event', 'procedure', 'decision']);
 
+/** 分层半衰期(小时,M03 §3 S 单位=小时):近事 3 天、知识 30 天、原则 1 年。检索命中即 strengthen 延长。 */
+const STABILITY_H = { 1: 72, 2: 720, 3: 8760 } as const;
+
 /** spool 的 kind('digest' 等)→ MemoryKind:摘要条目记 event(发生了什么) */
 function asKind(k: unknown, fallback: MemoryKind): MemoryKind {
   return typeof k === 'string' && KIND_SET.has(k) ? (k as MemoryKind) : fallback;
@@ -189,7 +192,7 @@ export class Consolidator {
           schema_version: 1, id: '', layer: 1, scope, owner,
           title: (typeof out.title === 'string' && out.title.trim()) ? out.title.trim().slice(0, 60) : 'session ' + String(rec.session_id || hash16),
           kind: asKind(rec.kind, 'event'),
-          importance, stability: 1.0, access_count: 0,
+          importance, stability: STABILITY_H[1], access_count: 0,
           last_access: nowISO(), status: 'active', pinned: false,
           superseded_by: null, source_ids: [hash16], tags: [],
           created_by: 'consolidator', created_at: nowISO(), updated_at: nowISO(),
@@ -255,7 +258,7 @@ export class Consolidator {
           title: String(m.title || 'merged knowledge').slice(0, 80),
           kind: asKind(m.kind, 'fact'),
           importance: clamp01(m.importance, 0.5),
-          stability: 1.0, access_count: 0, last_access: nowISO(),
+          stability: STABILITY_H[2], access_count: 0, last_access: nowISO(),
           status: 'active', pinned: false, superseded_by: null,
           source_ids: sources, tags: [],
           created_by: 'consolidator', created_at: nowISO(), updated_at: nowISO(),
@@ -316,7 +319,7 @@ export class Consolidator {
           title: fact.text.trim().slice(0, 50),
           kind: asKind(fact.kind, 'fact'),
           importance: clamp01(fact.importance, e.importance),
-          stability: 1.2, access_count: 0, last_access: nowISO(),
+          stability: STABILITY_H[3], access_count: 0, last_access: nowISO(),
           status: 'active', pinned: false, superseded_by: null,
           source_ids: [...e.source_ids], tags: e.tags ? [...e.tags] : [],
           created_by: 'consolidator', created_at: nowISO(), updated_at: nowISO(),
