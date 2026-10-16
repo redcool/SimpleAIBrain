@@ -16,6 +16,12 @@
 - 用户说 **"存储记忆"**:立即执行一次会话记忆存储。步骤:读本目录 `.brain.json` 取 token(若无此文件,回答"该工作区未登记,无法存储"并停止)→ 调 `memory.submit_session`,`session_id`=当前会话 id,`kind`="digest",`content`=截至当前的关键决定与新知识(400-1200 字,带出处,不含密钥)。重复执行会生成多个快照,巩固层会归并,属正常。
 - 用户说 **"获取记忆"**:立即读取一次工作区记忆。步骤:读 `.brain.json` 取 token → 调 `memory.context`,**token 作为工具参数 `_brainToken` 传入**(查询词=当前任务主题;无明确主题时用"核心架构 决策 规则")→ 把返回的记忆上下文作为已知前提继续任务。若响应带 `note`(访客提示),说明没带对身份,按 note 指引重来。可选附加 `memory.search` 深挖单条。
 
+- 用户说 **"查找记忆"** 或 **"查找记忆 <关键词>"**:立即调 `memory.search`(带 `_brainToken` 参数),逐条列出标题、正文、id、来源;不打断,列完即止。
+- 用户说 **"记忆体检"**:立即调 `memory.whoami` + `memory.stats`(带 `_brainToken` 参数),一段话汇报:当前身份、L1/L2/L3 计数、近 7 天检索与命中、上次巩固 run、needs_review 条数。
+- 用户说 **"登记记忆"**:检查本目录 `.brain.json`;若已存在,运行 `node H:/ai_works/SimpleAIBrain/scripts/enroll.mjs` 打印现状;若不存在,同命令执行登记(幂等,自动铸造 token)。完成后提示用户"新工作区先获取记忆验证一次"。
+
+> 用户指令全表见 `docs/用户指令.md`(含注意事项与内置自动化说明)。
+
 ## 常用工具(hub :45678)
 
 - `memory.context` — 按查询注入记忆上下文(读;agent/member 作用域需 `_brainToken` 参数)
