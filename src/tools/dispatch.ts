@@ -122,7 +122,14 @@ const handlers: Record<string, (ctx: ToolCtx, args: Record<string, unknown>) => 
       budgetTokens: budget,
       now: new Date(),
     });
-    return { budget: res.budgetTokens, chars: res.text.length, matched: res.selected.length, text: res.text };
+    const out: Record<string, unknown> = { budget: res.budgetTokens, chars: res.text.length, matched: res.selected.length, text: res.text };
+// 访客 0 命中提示:最常见故障是"没带 _brainToken"——给出去路,不泄内容
+if (!ctx.identity && res.selected.length === 0) {
+  let total = 0;
+  for await (const m of ctx.store.scanMeta()) { if (m.status !== 'archived') total++; }
+  if (total > 0) out.note = '访客仅可见 studio 作用域(命中 0)。库中存在 ' + total + ' 条 agent/member 记忆:从工作区 .brain.json 取 token,作为工具参数 _brainToken 传入即可查看(不是 HTTP Bearer 头)。可先调 memory.whoami 验证身份。';
+}
+return out;
   },
 
   'memory.submit_session': async (ctx, args) => {

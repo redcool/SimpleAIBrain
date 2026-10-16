@@ -168,3 +168,15 @@ test('review_list + edit: resolve/forget/restore/pin per state machine', async (
   const e = await mod.callTool(ctx, 'memory.edit', { id: id2, action: 'edit' });
   assert.ok(e.isError && /missing required param .content./.test(e.content.error));
 });
+
+test('guest context zero-hit carries _brainToken hint; identified caller has none', async (t) => {
+  const { mod, store, mkCtx, agent } = await mk(t);
+  await store.upsertEntry(baseEntry({ title: 'agent fact', body: 'agent scope content' }));
+  const guest = await mod.callTool(mkCtx(null), 'memory.context', { query: 'agent fact' });
+  assert.strictEqual(guest.content.matched, 0, 'guest sees no agent-scope entry');
+  assert.ok(guest.content.note && guest.content.note.indexOf('_brainToken') !== -1, 'hint points to _brainToken arg');
+  assert.ok(guest.content.note.indexOf('1 条') !== -1, 'hint counts non-archived entries');
+  const identified = await mod.callTool(mkCtx(agent), 'memory.context', { query: 'agent fact' });
+  assert.ok(identified.content.matched >= 1, 'identified caller hits');
+  assert.strictEqual(identified.content.note, undefined, 'no hint when identity resolves');
+});
