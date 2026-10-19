@@ -71,7 +71,7 @@ export function createBrainPlugin(): BrainPlugin {
           maxSessionsPerRun: consolidCfg.maxSessionsPerRun,
         });
         state.consolTimer = setInterval(() => {
-          void state.consolidator?.run().catch(() => { /* 下轮重试 */ });
+          void state.consolidator?.run('schedule').catch(() => { /* 下轮重试 */ });
         }, 24 * 60 * 60 * 1000);
         if (typeof state.consolTimer.unref === 'function') state.consolTimer.unref();
       }
@@ -150,7 +150,7 @@ export function createBrainPlugin(): BrainPlugin {
       // M05:手动触发一次巩固(调试/补跑;单飞锁防并发)
       app.addRoute('POST', '/brain/consolidate', () => {
         if (!state.consolidator) return { ok: false, error: 'consolidation disabled (schedule=off)' };
-        return state.consolidator.run();
+        return state.consolidator.run('manual');
       });
       // M06:hook 提交入口(hub 已读 body;同机传 transcript_path,远程带 content)
       app.addRoute('POST', '/brain/ingest', (body: unknown) => {

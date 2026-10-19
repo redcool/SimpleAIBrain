@@ -234,3 +234,25 @@ test('parseJsonOut repairs trailing commas in LLM output', async () => {
   assert.throws(() => mod.parseJsonOut('{ "a": [1, 2 }', 'merge'), /not valid JSON/);   // 有大括号但内部结构坏 → 修复通道救不了
   assert.throws(() => mod.parseJsonOut('no braces here', 'merge'), /no JSON object/);
 });
+
+test('run log: daily jsonl written with trigger and report', async (t) => {
+  const { store, consolidator, dataDir } = await mk(t);
+  await seedSession(store, 's1', 'x');
+  const rep = await consolidator.run('schedule');
+  const day = new Date().toLocaleDateString('sv');
+  const raw = await fsp.readFile(path.join(dataDir, '_logs', 'consolidate-' + day + '.jsonl'), 'utf8');
+  const lines = raw.trim().split('\n').map((l) => JSON.parse(l));
+  const rec = lines.find((r) => r.run_id === rep.run_id);
+  assert.ok(rec, 'run recorded');
+  assert.strictEqual(rec.trigger, 'schedule');
+  assert.strictEqual(rec.summarized, rep.summarized);
+});
+
+test('distill cap: at most 5 L3 atoms per L2', async (t) => {
+  const { store, consolidator, state } = await mk(t);
+  const l2 = await store.upsertEntry({ schema_version: 1, id: '', layer: 2, scope: 'member', owner: { member: 'alice', agent: '' }, title: 'rich knowledge', kind: 'fact', importance: 0.6, stability: 1.0, access_count: 0, last_access: NOW.toISOString(), status: 'active', pinned: false, superseded_by: null, source_ids: ['h1', 'h2', 'h3'], tags: [], created_by: 't', created_at: NOW.toISOString(), updated_at: NOW.toISOString(), body: 'three-session knowledge' });
+  state.distillOut = { facts: Array.from({ length: 7 }, (_, i) => ({ text: '原子事实' + i + '(出处 ' + l2 + ')', kind: 'fact', importance: 0.8 })) };
+  await consolidator.run();
+  const all = await allEntries(store);
+  assert.strictEqual(all.filter((e) => e.layer === 3).length, 5, 'hard cap 5');
+});

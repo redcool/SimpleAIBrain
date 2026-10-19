@@ -133,7 +133,9 @@ export class FileStore implements MemoryStore {
       await ensureDir(qdir);
       const dest = await uniqueFile(qdir, path.basename(file));
       await fs.rename(file, dest);
-      this.quarantined.push(path.basename(dest) + ' :: ' + (err instanceof Error ? err.message : String(err)));
+      const msg = path.basename(dest) + ' :: ' + (err instanceof Error ? err.message : String(err));
+      this.quarantined.push(msg);
+      console.warn('[file-store] quarantined unparseable file: ' + msg);   // 大声说,不静默(0.0.13.13)
     } catch { /* 隔离失败不崩 */ }
   }
 

@@ -118,9 +118,11 @@ export class Consolidator {
   }
 
   /** 单飞锁:并发第二次调用直接返回 singletonSkipped(M05 §2) */
-  async run(): Promise<RunReport> {
+  async run(trigger: 'schedule' | 'manual' = 'manual'): Promise<RunReport> {
+    const startedAt = Date.now();
     if (this.running) {
-      return { run_id: 'skipped', summarized: 0, merged: 0, conflicts_superseded: 0, conflicts_needs_review: 0, distilled: 0, archived: 0, skipped: [], gitCommitted: false, singletonSkipped: true };
+      await this.appendRunLog({ run_id: 'skipped', trigger, ts: nowISO(), skipped_reason: 'another run holds the lock' }).catch(() => {});
+  return { run_id: 'skipped', summarized: 0, merged: 0, conflicts_superseded: 0, conflicts_needs_review: 0, distilled: 0, archived: 0, skipped: [], gitCommitted: false, singletonSkipped: true };
     }
     this.running = true;
     try {
@@ -135,7 +137,8 @@ export class Consolidator {
       report.conflicts_needs_review = mo.needsReview;
       report.distilled = await this.stageDistill();
       report.archived = await this.stageDecay();
-      state.last_run = { run_id: runId, finished_at: nowISO(), summarized: report.summarized, merged: report.merged, distilled: report.distilled, archived: report.archived };
+      await this.appendRunLog({ run_id: runId, trigger, ts: nowISO(), duration_ms: Date.now() - startedAt, summarized: report.summarized, merged: report.merged, conflicts_superseded: report.conflicts_superseded, conflicts_needs_review: report.conflicts_needs_review, distilled: report.distilled, archived: report.archived, skipped: report.skipped, gitCommitted: report.gitCommitted }).catch(() => {});
+    state.last_run = { run_id: runId, finished_at: nowISO(), summarized: report.summarized, merged: report.merged, distilled: report.distilled, archived: report.archived };
       await this.saveState(state);
       report.gitCommitted = await gitCommitIfRepo(
         this.opts.dataDir,
@@ -153,6 +156,14 @@ export class Consolidator {
   }
 
   /** 摘要 L0→L1:消费 _spool 提交的 digest(游标幂等;LLM 失败跳过不阻塞) */
+  /** 每日一文件 JSONL 运行日志:复核定时巩固是否真实触发(0.0.13.13) */
+  private async appendRunLog(rec: Record<string, unknown>): Promise<void> {
+    const dir = path.join(this.opts.dataDir, '_logs');
+    await ensureDir(dir);
+    const day = new Date().toLocaleDateString('sv');
+    await fs.appendFile(path.join(dir, 'consolidate-' + day + '.jsonl'), JSON.stringify(rec) + '\n', 'utf8');
+  }
+
   private async stageSummarize(state: StateFile, report: RunReport): Promise<number> {
     const root = (this.store as unknown as { root: string }).root;
     const spoolDir = path.join(root, '_spool');
@@ -309,7 +320,7 @@ export class Consolidator {
       } catch {
         continue;                               // 失败下轮重试(候选仍在)
       }
-      for (const fact of (out.facts || [])) {
+      for (const fact of (out.facts || []).slice(0, 5)) {   // 原子句上限:防 L3 碎片化爆炸(0.0.13.13)
         if (!fact || typeof fact.text !== 'string' || !fact.text.trim()) continue;
         const fresh: Entry = {
           schema_version: 1, id: '', layer: 3, scope: 'member',
