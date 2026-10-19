@@ -109,3 +109,16 @@ test('revoke: mapping removed, memory ownership untouched (id unchanged)', async
   assert.ok(!(await reg.revoke(id)), 'second revoke false');
   assert.strictEqual(mod.identityToString(id), 's/alice/b', 'id object unchanged by revoke');
 });
+
+test('registry hot-reload: token enrolled by another process is recognized without reload call', async (t) => {
+  const { mod, reg, dir } = await mk(t);
+  const reg2 = new mod.TokenRegistry(path.join(dir, 'tokens.json'));
+  await reg2.load();   // 模拟另一个进程(enroll):它自己 load,然后签发
+  const idB = mod.makeIdentity('studio1', 'alice', 'soundgenprj');
+  const tokB = await reg2.issue(idB);
+  // reg1 从未重新 load——按 mtime 热加载后应能认出
+  const got = reg.resolve(tokB);
+  assert.ok(got, 'hot-reloaded registry recognizes new token');
+  assert.strictEqual(mod.identityToString(got), 'studio1/alice/soundgenprj');
+  assert.strictEqual(reg.resolve('bogus-token-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'), null, 'wrong token still null');
+});

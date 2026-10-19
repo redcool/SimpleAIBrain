@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import fsSync from 'node:fs';
 import { dirname } from 'node:path';
 import type { Identity } from '../types.js';
 import { atomicWriteFile, ensureDir, exists } from '../util/fsutil.js';
@@ -22,6 +23,7 @@ interface TokenFile { schema_version: 1; tokens: Record<string, string>; }
  */
 export class TokenRegistry {
   private hashes = new Map<string, string>();
+  private loadedMtimeMs = -1;
   constructor(readonly filePath: string) {}
 
   async load(): Promise<void> {
@@ -34,12 +36,14 @@ export class TokenRegistry {
       throw new Error('token file malformed: ' + this.filePath);
     }
     for (const [id, hash] of Object.entries(data.tokens)) this.hashes.set(id, hash);
+    try { this.loadedMtimeMs = fsSync.statSync(this.filePath).mtimeMs; } catch { /* 保持 -1 */ }
   }
 
   private async save(): Promise<void> {
     const data: TokenFile = { schema_version: 1, tokens: Object.fromEntries(this.hashes) };
     await ensureDir(dirname(this.filePath));
     await atomicWriteFile(this.filePath, JSON.stringify(data, null, 2) + '\n');
+    try { this.loadedMtimeMs = fsSync.statSync(this.filePath).mtimeMs; } catch { /* 保持旧值 */ }
   }
 
   /** 签发新 token 并登记;返回明文 token(仅此一次) */
@@ -56,14 +60,31 @@ export class TokenRegistry {
     await this.save();
   }
 
-  /** token → 身份;查不到/未带 → null(只读访客) */
+  /** token → 身份;查不到/未带 → null(只读访客)。miss 时按 mtime 热加载一次:enroll 等其他进程新登记的 token 无需重启 hub(0.0.13.14) */
   resolve(token: string | undefined | null): Identity | null {
     if (!token) return null;
     const h = hashToken(token);
     for (const [id, hash] of this.hashes) {
       if (hash === h) return parseIdentityId(id);
     }
+    this.reloadIfChangedSync();
+    for (const [id, hash] of this.hashes) {
+      if (hash === h) return parseIdentityId(id);
+    }
     return null;
+  }
+
+  private reloadIfChangedSync(): void {
+    try {
+      const st = fsSync.statSync(this.filePath);
+      if (st.mtimeMs === this.loadedMtimeMs) return;
+      const text = fsSync.readFileSync(this.filePath, 'utf8');
+      const data = JSON.parse(text) as TokenFile;
+      if (!data || data.schema_version !== 1 || typeof data.tokens !== 'object') return;
+      this.hashes.clear();
+      for (const [id, hash] of Object.entries(data.tokens)) this.hashes.set(id, hash);
+      this.loadedMtimeMs = st.mtimeMs;
+    } catch { /* 文件缺失/损坏 → 保持内存现状 */ }
   }
 
   /** 轮换:换 token,ID 不变;旧 token 立即失效 */
