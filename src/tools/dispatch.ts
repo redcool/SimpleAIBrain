@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { defaultStability } from '../model/scoring.js';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import type { Entry, EntryMeta, Identity, MemoryKind, Scope } from '../types.js';
@@ -68,7 +69,7 @@ const handlers: Record<string, (ctx: ToolCtx, args: Record<string, unknown>) => 
       title: '',                                  // 缺省取正文首行(file-store 归一化)
       kind,
       importance,
-      stability: 1.0,
+      stability: defaultStability(1),
       access_count: 0,
       last_access: now,
       status: 'active',

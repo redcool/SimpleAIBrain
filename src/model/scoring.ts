@@ -3,6 +3,13 @@ import type { EntryMeta } from '../types.js';
 /** 默认参数(待校准,M03 §8):开跑两周后按 stats 调整 */
 export const DEFAULTS = { k: 0.25, floor: 0.15 } as const;
 
+/** 分层半衰期(小时,M03 §3 S 单位=小时):近事 3 天、知识 30 天、原则 1 年。consolidator 与 memory.save 共用,勿再散写字面量。 */
+export const STABILITY_HOURS = { 1: 72, 2: 720, 3: 8760 } as const;
+
+export function defaultStability(layer: 1 | 2 | 3): number {
+  return STABILITY_HOURS[layer];
+}
+
 export interface DecayOptions { floor?: number; k?: number; }
 
 export interface DecayReport {

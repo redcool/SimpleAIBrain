@@ -180,3 +180,19 @@ test('guest context zero-hit carries _brainToken hint; identified caller has non
   assert.ok(identified.content.matched >= 1, 'identified caller hits');
   assert.strictEqual(identified.content.note, undefined, 'no hint when identity resolves');
 });
+
+test('memory.save uses layer-1 stability (72h); decay horizon sanity; body roundtrip clean', async (t) => {
+  const { mod, store, mkCtx, agent } = await mk(t);
+  const r = await mod.callTool(mkCtx(agent), 'memory.save', { content: '零补丁摄入机制确定,核心决定包括持续脱敏规范', kind: 'fact', importance: 0.7 });
+  assert.strictEqual(r.isError, false);
+  const seen = await Array.fromAsync(store.iterateByScope({}));
+  assert.strictEqual(seen.length, 1);
+  assert.strictEqual(seen[0].stability, 72, 'save inherits L1 default, not 1.0h');
+  assert.ok(!seen[0].body.includes('\uFFFD'), 'body roundtrip has no replacement chars');
+  const { decaySweep } = await import('../dist/model/scoring.js');
+  const fresh = await Array.fromAsync(store.iterateByScope({ includeArchived: true }));
+  fresh[0].last_access = new Date(Date.now() - 2 * 86400000).toISOString();
+  assert.strictEqual(decaySweep(fresh, new Date()).toArchive.length, 0, '2d untouched survives');
+  fresh[0].last_access = new Date(Date.now() - 14 * 86400000).toISOString();
+  assert.strictEqual(decaySweep(fresh, new Date()).toArchive.length, 1, '14d untouched archives (reversible)');
+});
