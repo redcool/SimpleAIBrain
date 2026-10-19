@@ -11,7 +11,7 @@ import { redactText } from './redact.js';
 import { decodeDshArtifact, parseDshJsonlText, extractDshMeta } from './dsh.js';
 import { deadDshSessions, retractSession } from '../consolidation/retractor.js';
 import type { DshMeta } from './dsh.js';
-import { ensureDir, nowISO } from '../util/fsutil.js';
+import { atomicWriteFile, ensureDir, exists, nowISO } from '../util/fsutil.js';
 
 /** M06 §5:parser 层。每 harness 一个,钉版本;格式漂移 → 拒绝并告警,不猜。 */
 export interface Parser {
@@ -92,15 +92,18 @@ export interface IngestOptions {
   reconcileIntervalMs?: number;                 // 默认 10min
   watchEnabled?: boolean;
   dshIdleMs?: number;                           // DSH 活跃 session 静默阈值,默认 10min(防追加中反复重摄)
+  autoDigest?: boolean;                         // 0.0.14 L0 自动摘要:空闲无 digest 的已摄会话自动补 spool(默认关)
 }
 
 interface Manifest {
   schema_version: 1;
-  sessions: Record<string, { hash: string; ts: string; identity?: string; src?: string }>;
+  sessions: Record<string, { hash: string; ts: string; identity?: string; src?: string; autoDigested?: boolean }>;
 }
 
 const WALK_MAX_FILES = 200;
 const SUBMIT_CAP_PER_CYCLE = 50;
+const AUTO_DIGEST_CAP_PER_CYCLE = 10;   // 每轮自动摘要上限(成本护栏)
+const AUTO_DIGEST_CHARS = 16000;        // 自动摘要正文上限(全量 v1,超长截断)
 
 function safeParseIdentity(s: string | null | undefined): Identity | null {
   if (!s) return null;
@@ -226,6 +229,57 @@ export class IngestWorker {
     return n;
   }
 
+  /**
+   * 0.0.14 L0 自动摘要:agent 未提交 digest 的已摄会话,空闲后自动补一条 spool(kind digest, auto:true)。
+   * 只补位不抢人:spool 里已有该会话的任何摘要 → 跳过;每会话至多一次(manifest.autoDigested);
+   * 本方法不调 LLM——摘要抽取发生在巩固器(成本由 maxSessionsPerRun 管控)。
+   */
+  private async autoDigestPass(d: { dir: string; idleMs?: number }, manifest: Manifest): Promise<number> {
+    if (this.opts.autoDigest !== true) return 0;
+    const root = (this.opts.store as unknown as { root: string }).root;
+    const spoolDir = path.join(root, '_spool');
+    await ensureDir(spoolDir);
+    const digested = new Set<string>();
+    let spoolFiles: string[] = [];
+    try { spoolFiles = (await fs.readdir(spoolDir)).filter((f) => f.endsWith('.json')); } catch { spoolFiles = []; }
+    for (const f of spoolFiles) {
+      try {
+        const rec = JSON.parse(await fs.readFile(path.join(spoolDir, f), 'utf8'));
+        if (rec && rec.session_id) digested.add(String(rec.session_id));
+      } catch { /* 损坏 spool 忽略 */ }
+    }
+    let arts: string[] = [];
+    try { arts = await this.walkJsonl(d.dir, true); } catch { return 0; }   // 会话目录两层嵌套(<项目>/<id>/),复用现成 walker
+    let n = 0;
+    for (const art of arts) {
+      if (n >= AUTO_DIGEST_CAP_PER_CYCLE) break;
+      const sid = path.basename(path.dirname(art));   // DSH:session 目录名即 id
+      const row = manifest.sessions[sid];
+      if (!row || row.src !== 'dsh' || row.autoDigested) continue;   // 只对已摄 dsh 会话补位;至多一次
+      if (digested.has(sid)) continue;                               // 人工/既有摘要优先
+      let raw: Buffer;
+      try { raw = await fs.readFile(art); } catch { continue; }
+      try { if (d.idleMs && Date.now() - (await fs.stat(art)).mtimeMs < d.idleMs) continue; } catch { continue; }
+      let text = '';
+      try { text = parseDshJsonlText(decodeDshArtifact(raw)); } catch (e) {
+        this.opts.logger?.('[ai-brain] auto-digest parse failed (' + sid + '): ' + (e instanceof Error ? e.message : String(e)));
+        continue;                                                    // 解析失败不标记,下轮重试
+      }
+      if (!text.trim()) { manifest.sessions[sid].autoDigested = true; continue; }   // 无正文,无事可摘
+      const content = '[自动摘要 | 会话空闲无提交]\n' + redactText(text, AUTO_DIGEST_CHARS);   // 脱敏强制点
+      const hash = sha256hex(content);
+      const file = path.join(spoolDir, hash.slice(0, 16) + '.json');
+      if (!(await exists(file))) {
+        await atomicWriteFile(file, JSON.stringify({ ts: nowISO(), session_id: sid, kind: 'digest', hash, identity: row.identity || null, content, auto: true }, null, 2));
+        n++;
+        this.opts.logger?.('[ai-brain] auto-digest spooled: ' + sid);
+      }
+      manifest.sessions[sid].autoDigested = true;
+    }
+    if (n > 0) await this.saveManifest();
+    return n;
+  }
+
   /** 周期对账:扫 transcript 目录,manifest 缺行/哈希变化即补交(manifest 以文件为准:每轮强制重读,人工删行会被看到) */
   async reconcile(): Promise<number> {
     if (this.opts.watchEnabled === false) return 0;
@@ -278,6 +332,12 @@ export class IngestWorker {
     }
     // 撤回(0.0.13.0):manifest 里 src='dsh' 的行,磁盘上会话没了 → 关联记忆按引用链退出
     const dshEntry = dirs.find((d) => d.zstd === true);
+    // 0.0.14 L0 自动摘要:空闲 + 无 digest 的已摄会话 → 自动补 spool(先于撤回:文件在才会补,文件没了走撤回)
+    if (dshEntry) {
+      const mf = await this.loadManifest();
+      const autoN = await this.autoDigestPass(dshEntry, mf);
+      if (autoN > 0) this.opts.logger?.('[ai-brain] auto-digest: ' + autoN + ' spooled');
+    }
     if (dshEntry) {
       const now = await this.loadManifest();
       const scan = await deadDshSessions(now.sessions, dshEntry.dir);

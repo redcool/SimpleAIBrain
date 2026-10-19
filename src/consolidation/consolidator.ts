@@ -175,7 +175,7 @@ export class Consolidator {
       if (n >= cap) break;
       const hash16 = f.replace(/\.json$/, '');
       if (state.processed_spool[hash16]) continue;
-      let rec: { session_id?: string; kind?: string; identity?: string | null; content?: string };
+      let rec: { session_id?: string; kind?: string; identity?: string | null; content?: string; auto?: boolean };
       try {
         rec = JSON.parse(await fs.readFile(path.join(spoolDir, f), 'utf8'));
       } catch (e) {
@@ -193,7 +193,8 @@ export class Consolidator {
         const out = await this.llm<ExtractOut>(extractPrompt({ sessionId: String(rec.session_id || hash16), kind: String(rec.kind || 'digest'), content: safeContent }), 'extract');
         if (!out || typeof out.summary !== 'string' || !out.summary.trim()) throw new Error('extract: empty summary');
         const facts = Array.isArray(out.facts) ? out.facts : [];
-        const importance = facts.length ? clamp01(Math.max(...facts.map((x) => x.importance)), 0.5) : 0.5;
+        const rawImp = facts.length ? clamp01(Math.max(...facts.map((x) => x.importance)), 0.5) : 0.5;
+        const importance = rec.auto === true ? Math.min(rawImp, 0.6) : rawImp;   // 自动摘要权重硬上限(0.014 设计稿 §3)
         const body = out.summary.trim() + (facts.length ? '\n\n要点:\n' + facts.map((x, i) => (i + 1) + '. ' + String(x.text)).join('\n') : '');
         const scope: Scope = identity ? (identity.agent_label ? 'agent' : 'member') : 'member';
         const owner = { member: identity ? identity.member : 'unknown', agent: identity ? identity.agent_label : '' };
@@ -204,7 +205,7 @@ export class Consolidator {
           importance, stability: defaultStability(1), access_count: 0,
           last_access: nowISO(), status: 'active', pinned: false,
           superseded_by: null, source_ids: [hash16], tags: [],
-          created_by: 'consolidator', created_at: nowISO(), updated_at: nowISO(),
+          created_by: rec.auto === true ? 'watcher:auto' : 'consolidator', created_at: nowISO(), updated_at: nowISO(),
           body,
         });
         state.processed_spool[hash16] = id;
