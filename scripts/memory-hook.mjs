@@ -90,6 +90,7 @@ async function main() {
     fs.writeFileSync(stateFile, JSON.stringify({ lastInject: Date.now(), lastHash: hash, event: eventName, query: query.slice(0, 80) }) + '\n');
   } catch { /* 状态失败不影响注入 */ }
   const evName = (typeof evt !== 'undefined' && evt.hook_event_name) || 'UserPromptSubmit';
+  payload += '\n[记忆提示] 细节不足,或提及「之前/上次/约定」而无法解析时:先 memory.search 查证再答,禁止编造。';
   const structured = JSON.stringify({ hookSpecificOutput: { hookEventName: evName, additionalContext: payload } });
   process.stdout.write(structured + '\n');
   trace({ step: 'done', structured: true });
