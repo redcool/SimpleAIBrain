@@ -4,3 +4,4 @@ data/
 dist/
 *.log
 .brain.json
+data/auto-speak-state/
