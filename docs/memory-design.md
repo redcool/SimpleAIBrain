@@ -77,7 +77,7 @@ R < 地板值 → status = archived       可逆,显式搜索可命中
 | [M06 会话摄入](modules/06-ingestion.md) | ✅ 定稿 | hook 便签→POST→spool→watcher;被动流水;脱敏;**opt-in 登记 + ignore_session_prefix + DSH 零补丁通道 + 撤回** | ✅ 0.0.13.0 | ✅ 86/86 | ;**0.0.14 L0 自动摘要已实现(默认开,0.0.14.1)** | ✅ 0.0.14.0 | ✅ 96/96(全套) |
 | [M07 身份与权限](modules/07-identity.md) | ✅ 定稿 | ID/token 模型、.brain.json、权限闸门 | ✅ 0.0.4.0 | ✅ 27/27 |
 | [M08 工具面](modules/08-tools.md) | ✅ 定稿 | memory.* 工具契约(agent 可见部分) | ✅ 0.0.5.0 | ✅ 34/34 |
-| [M09 部署与联邦](modules/09-federation.md) | ✅ 定稿 | Tier 0-3、读联邦、发布流(v2/v3 实现);**设计稿: Tier 1 公共记忆(共识上层,M09 第一刀)** | ⬜ v2 起(第一刀待实现) | ⬜ |
+| [M09 部署与联邦](modules/09-federation.md) | ✅ 定稿 | Tier 0-3、读联邦、发布流;**Tier 1 公共记忆已实现(共识上层:agent 提案/member resolve 拍板/edit supersede 取代/studioPrior 1.3)** | 🟨 0.0.15.0(第一刀);Tier 2+ v2 起 | ✅ 101/101(全套) |
 | [M10 质量与观测](modules/10-quality.md) | ✅ 定稿 | stats、命中日志、review 出口 | ✅ 0.0.10.0 | ✅ 72/72 |
 | [M11 安全与生命周期](modules/11-security.md) | ✅ 定稿 | 投毒防护、密钥红线、成员退出、备份 | ✅ 0.0.10.0 | ✅ 72/72 |
 

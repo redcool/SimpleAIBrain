@@ -53,8 +53,14 @@ const handlers: Record<string, (ctx: ToolCtx, args: Record<string, unknown>) => 
     if (!KINDS.includes(kind)) fail('memory.save: kind must be one of ' + KINDS.join('|'));
     const scope = (typeof args.scope === 'string' && args.scope ? args.scope : identity.agent_label ? 'agent' : 'member') as Scope;
     if (!SAVE_SCOPES.includes(scope)) fail('memory.save: scope must be agent|member|studio');
-    if (scope === 'studio' && roleOf(identity) !== 'member') fail('memory.save: studio scope requires member token');
-    if (scope === 'agent' && !identity.agent_label) fail('memory.save: member 凭证请用 scope=member');
+    const isMemberCred = roleOf(identity) === 'member';
+    if (scope === 'agent' && isMemberCred) fail('memory.save: member 凭证请用 scope=member');
+    let status: 'active' | 'needs_review' = 'active';
+    let note = '已存为候选(L1);能否长期保留由巩固决定,不承诺进入 L3';
+    if (scope === 'studio' && !isMemberCred) {
+      status = 'needs_review';   // 0.0.15 共识上层:agent 提案,member 凭证 resolve 拍板后生效
+      note = '已登记为共识提案(needs_review):待 member 级凭证确认后生效';
+    }
     const importance = args.importance === undefined ? 0.5 : Number(args.importance);
     if (!Number.isFinite(importance) || importance < 0 || importance > 1) fail('memory.save: importance must be 0..1');
     const tags = args.tags === undefined ? [] : args.tags;
@@ -72,7 +78,7 @@ const handlers: Record<string, (ctx: ToolCtx, args: Record<string, unknown>) => 
       stability: defaultStability(1),
       access_count: 0,
       last_access: now,
-      status: 'active',
+      status,
       pinned: false,
       superseded_by: null,
       source_ids: [],
@@ -84,7 +90,7 @@ const handlers: Record<string, (ctx: ToolCtx, args: Record<string, unknown>) => 
       body: content,
     };
     const id = await ctx.store.upsertEntry(entry);
-    return { id, layer: 1, note: '已存为候选(L1);能否长期保留由巩固决定,不承诺进入 L3' };
+    return { id, layer: 1, status, note };
   },
 
   'memory.search': async (ctx, args) => {
@@ -231,7 +237,20 @@ return out;
       if (cur.status !== 'needs_review') fail('memory.review_list: entry not in needs_review (status: ' + cur.status + ')');
       assertTransition(cur.status, verdict as EntryMeta['status']);
       await ctx.store.patchMeta(id, { status: verdict as EntryMeta['status'] });
-      return { id, status: verdict };
+      if (verdict !== 'active') return { id, status: verdict };
+      // 0.0.15 共识激活:返回可能冲突的旧条目(仅建议;取代由 member 用 edit supersede 显式执行)
+      const dtags = new Set((cur.tags || []).map((x) => String(x).toLowerCase()));
+      const dtitle = String(cur.title || '').toLowerCase();
+      const cands: { id: string; title: string; scope: string; kind: string }[] = [];
+      for await (const e of ctx.store.iterateByScope({})) {
+        if (e.id === id || e.status !== 'active') continue;
+        const eTitle = String(e.title || '').toLowerCase();
+        const tOver = dtitle.length > 3 && (eTitle.includes(dtitle) || dtitle.includes(eTitle));
+        if (tOver || (e.tags || []).some((x) => dtags.has(String(x).toLowerCase()))) {
+          cands.push({ id: e.id, title: e.title, scope: e.scope, kind: e.kind });
+        }
+      }
+      return { id, status: verdict, conflict_candidates: cands };
     }
     fail('memory.review_list: action must be list|resolve');
   },
@@ -259,7 +278,16 @@ return out;
       await ctx.store.patchMeta(id, { status: 'active' });
       return { id, status: 'active' };
     }
-    fail('memory.edit: action must be edit|pin|unpin|forget|restore');
+    if (action === 'supersede') {
+      const ref = needStr(args, 'ref', 'memory.edit(supersede)');
+      const refEntry = await pickById(ctx.store, ref);
+      if (!refEntry) fail('memory.edit(supersede): unknown ref id ' + ref);
+      if (cur.status !== 'active') fail('memory.edit(supersede): only active entries can be superseded (status: ' + cur.status + ')');
+      assertTransition(cur.status, 'superseded');
+      await ctx.store.patchMeta(id, { status: 'superseded', superseded_by: ref });
+      return { id, status: 'superseded', superseded_by: ref };
+    }
+    fail('memory.edit: action must be edit|pin|unpin|forget|restore|supersede');
   },
 };
 

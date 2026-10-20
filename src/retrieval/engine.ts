@@ -14,6 +14,7 @@ export const RETRIEVAL_DEFAULTS = {
   priors: { 1: 0.7, 2: 1.0, 3: 1.2 } as Record<Layer, number>,
   topN: { 1: 8, 2: 10, 3: 12 } as Record<Layer, number>,
   quota: { 1: 0.5, 2: 0.3, 3: 0.2 } as Record<Layer, number>,   // L3 20% / L2 30% / L1 50%
+  studioPrior: 1.3,                             // 0.0.15 studio 作用域(公共记忆)先验
 };
 
 const MAX_PIECE_BODY = 400;
@@ -47,7 +48,8 @@ export async function rankCandidates(store: MemoryStore, identity: Identity | nu
   }
   const ranked: RankedEntry[] = candidates.map((entry) => {
     const rel = relevance(entry, opts.query);
-    return { entry, rel, score: rel * (priors[entry.layer] ?? 1) * recallScore(entry, opts.now) };
+    const scopeMul = entry.scope === 'studio' ? RETRIEVAL_DEFAULTS.studioPrior : 1;
+    return { entry, rel, score: rel * (priors[entry.layer] ?? 1) * recallScore(entry, opts.now) * scopeMul };
   });
   const hits = ranked.filter((r) => r.rel > 0);
   if (hits.length > 0) {

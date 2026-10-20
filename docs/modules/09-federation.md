@@ -45,7 +45,7 @@ POST /brain/query   (联邦 token)
 
 ---
 
-## 设计稿(M09 第一刀,实现未开始):Tier 1 公共记忆——共识上层,不全员裸读
+## 已实现(0.0.15.0):Tier 1 公共记忆——共识上层,不全员裸读
 
 > 定位:本模块实现的第一片(Tier 1,单工作室多成员)。跨工作室联邦(Tier 2+)不受影响、仍属 v2。动机:多 agent/多人各自演化"我们怎么做"会漂移;会议式共识是最强知识形态(多人佐证、显式确认),值得一个专门的层。
 
@@ -56,9 +56,9 @@ POST /brain/query   (联邦 token)
 ### 2. 流程(会议纪要的系统翻译)
 
 1. **提案**:会议/讨论后,记录者(agent 或人)提交 digest,`scope: "studio"`、`kind: "decision"`,正文 = 共识 + 已知分歧 + 出处。agent 只有提案权。
-2. **冲突检测**:与各成员现有 active 条目矛盾(同题不同结论)→ 全部进 `needs_review`。
-3. **人拍板**:member 级身份逐条确认——同意则旧条目 `superseded`(证据链保留,引用链指向共识条目);有理分歧可保留,标 competing。
-4. **生效**:共识条目在检索中享受置顶先验(kind: decision × studio 作用域)。**不自动 pin**——过期的共识靠 needs_review 人工推翻,避免"一次开会定终身"。
+2. **冲突检测**:成员 resolve 激活共识时,工具返回 `conflict_candidates`(标签相交或标题重叠的 active 条目,仅建议)。
+3. **人拍板**:`memory.review_list resolve`(member 独占)激活提案;旧条目由 member 用 `memory.edit supersede`(需 `ref`=共识条目 id)显式取代——证据链保留,`superseded_by` 指向共识条目;有理分歧可不取代。
+4. **生效**:studio 作用域享受检索先验(engine `studioPrior: 1.3`);**不自动 pin**。提案在 needs_review 期间不进检索上下文。
 
 ### 3. 权限与红线
 

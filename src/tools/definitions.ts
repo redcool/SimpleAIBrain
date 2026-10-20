@@ -93,12 +93,12 @@ export const TOOL_DEFS: ToolDef[] = [
   },
   {
     name: 'memory.edit',
-    description: '(member)修改/钉住/遗忘/恢复条目——大脑手术,谨慎使用。',
+    description: '(member)修改/钉住/遗忘/恢复/取代条目——大脑手术,谨慎使用;supersede 需 ref 指向共识条目。',
     inputSchema: {
       type: 'object',
       properties: {
         id: { type: 'string' },
-        action: { type: 'string', enum: ['edit', 'pin', 'unpin', 'forget', 'restore'] },
+        action: { type: 'string', enum: ['edit', 'pin', 'unpin', 'forget', 'restore', 'supersede'] },
         content: { type: 'string', description: 'action=edit 时必填' },
         reason: { type: 'string' },
       },
