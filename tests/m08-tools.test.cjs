@@ -196,3 +196,19 @@ test('memory.save uses layer-1 stability (72h); decay horizon sanity; body round
   fresh[0].last_access = new Date(Date.now() - 14 * 86400000).toISOString();
   assert.strictEqual(decaySweep(fresh, new Date()).toArchive.length, 1, '14d untouched archives (reversible)');
 });
+
+test('tocOnly: returns pure title TOC, ignores query, respects visibility', async () => {
+  const { mod, mkCtx, agent, store } = await mk(null);
+  await store.upsertEntry(baseEntry({ layer: 2, scope: 'agent', title: '目录甲', body: 'bx' }));
+  await store.upsertEntry(baseEntry({ layer: 1, scope: 'member', owner: { member: 'bob', agent: '' }, title: '成员私密', body: 'y' }));
+  const r1 = await mod.callTool(mkCtx(agent), 'memory.context', { query: '完全无关词', tocOnly: true });
+  const r1c = r1.content || r1;
+  assert.strictEqual(r1c.toc, true);
+  assert.ok(r1c.text.includes('目录甲'), 'agent-visible title present');
+  assert.ok(!r1c.text.includes('成员私密'), 'member-scope hidden from agent');
+  assert.ok(!r1c.text.includes('bx'), 'body content NOT leaked in TOC');
+  const guest = await mod.callTool(mkCtx(null), 'memory.context', { query: 'q', tocOnly: true });
+  const gc = guest.content || guest;
+  assert.strictEqual(gc.toc, true);
+  assert.ok(!gc.text.includes('目录甲'), 'guest sees no agent memory titles');
+});

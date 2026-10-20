@@ -49,6 +49,7 @@ export const TOOL_DEFS: ToolDef[] = [
         query: { type: 'string' },
         project: { type: 'string' },
         budget: { type: 'number', description: 'token 预算,缺省 4000' },
+        tocOnly: { type: 'boolean', description: 'true=只返回纯标题目录(领航灯/快速盘点用),忽略 query' }
       },
       required: ['query'],
     },

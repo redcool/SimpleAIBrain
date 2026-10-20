@@ -123,6 +123,19 @@ const handlers: Record<string, (ctx: ToolCtx, args: Record<string, unknown>) => 
     const query = needStr(args, 'query', 'memory.context');
     const budget = args.budget === undefined ? undefined : Number(args.budget);
     if (budget !== undefined && (!Number.isFinite(budget) || budget < 200)) fail('memory.context: budget must be >=200 tokens');
+    // 0.0.16.0:tocOnly —— 纯标题目录(领航灯用),让 agent 随时可见库中有什么;不加新工具(工具数红线 8 不破)
+    if (args.tocOnly === true) {
+      const titles: string[] = [];
+      for await (const m of ctx.store.scanMeta()) {
+        if (m.status !== 'active') continue;
+        if (!visibleTo(ctx.identity, m as never)) continue;
+        titles.push((m.layer === 3 ? 'L3' : m.layer === 2 ? 'L2' : 'L1') + ' ' + m.title);
+      }
+      titles.sort((x, y) => (y.startsWith('L3') ? 1 : 0) - (x.startsWith('L3') ? 1 : 0));
+      const shown = titles.slice(0, 14);
+      const text = '[记忆目录 · ' + titles.length + ' 条在线' + (titles.length > shown.length ? ',示 ' + shown.length : '') + '] ' + shown.join(' / ') + ' —— 细节: memory.search';
+      return { toc: true, count: titles.length, chars: text.length, text };
+    }
     const res = await retrieve(ctx.store, ctx.identity, {
       query,
       project: typeof args.project === 'string' ? args.project : undefined,

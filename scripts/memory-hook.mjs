@@ -48,10 +48,11 @@ async function main() {
   const sid = String(evt.session_id || cwd);
   const stateFile = path.join(STATE_DIR, crypto.createHash('sha1').update(sid).digest('hex').slice(0, 16) + '.json');
   let st = null;
+  let pilotMode = false;
   try {
     st = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
     if (eventName !== 'SessionStart' && process.env.SIMPLEBRAIN_HOOK_NO_THROTTLE !== '1') {
-      if (Date.now() - (st.lastInject || 0) < PROMPT_THROTTLE_MS) die('throttled');
+      if (st.lastHash) { if (Date.now() - (st.lastInject || 0) < 10 * 60 * 1000) { if (Date.now() - (st.lastFull || 0) > 30 * 60 * 1000) { pilotMode = true; } else { die('rate-limited'); } } } else if (Date.now() - (st.lastInject || 0) < PROMPT_THROTTLE_MS) die('throttled');
     }
   } catch { /* 无状态 → 视为首次 */ }
   let promptText = typeof evt.prompt === 'string' ? evt.prompt : '';
@@ -61,10 +62,9 @@ async function main() {
   if (promptText && promptText.length < 4 && eventName !== 'SessionStart') die('trivial-prompt');
   const prompt = promptText || FALLBACK_QUERY;
   const query = prompt || FALLBACK_QUERY;
-  const body = {
-    jsonrpc: '2.0', id: 1, method: 'tools/call',
-    params: { name: 'memory.context', arguments: { query, _brainToken: bj.token, budget: 2000 } },
-  };
+  const body = pilotMode
+    ? { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'memory.context', arguments: { query: FALLBACK_QUERY, _brainToken: bj.token, tocOnly: true } } }
+    : { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'memory.context', arguments: { query, _brainToken: bj.token, budget: 2000 } } };
   let resp;
   try {
     resp = await fetch(HUB + '/rpc', {
@@ -82,12 +82,14 @@ async function main() {
   const hash = crypto.createHash('sha1').update(payload).digest('hex').slice(0, 16);
   if (eventName !== 'SessionStart' && process.env.SIMPLEBRAIN_HOOK_NO_THROTTLE !== '1') {
     if (st && st.lastHash === hash) die('same-content');
-    if (Date.now() - (st && st.lastInject || 0) < 10 * 60 * 1000) die('rate-limited');
+    if (!pilotMode && Date.now() - (st && st.lastInject || 0) < 10 * 60 * 1000) {
+      if (Date.now() - (st && st.lastFull || 0) > 30 * 60 * 1000) { pilotMode = true; } else { die('rate-limited'); }
+    }
   }
   trace({ step: 'inject', chars: payload.length });
   try {
     fs.mkdirSync(STATE_DIR, { recursive: true });
-    fs.writeFileSync(stateFile, JSON.stringify({ lastInject: Date.now(), lastHash: hash, event: eventName, query: query.slice(0, 80) }) + '\n');
+    fs.writeFileSync(stateFile, JSON.stringify({ lastInject: Date.now(), lastFull: pilotMode ? (st && st.lastFull || 0) : Date.now(), lastHash: hash, pilot: pilotMode, event: eventName, query: query.slice(0, 80) }) + '\n');
   } catch { /* 状态失败不影响注入 */ }
   const evName = (typeof evt !== 'undefined' && evt.hook_event_name) || 'UserPromptSubmit';
   payload += '\n[记忆提示] 细节不足,或提及「之前/上次/约定」而无法解析时:先 memory.search 查证再答,禁止编造。';
