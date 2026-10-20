@@ -40,7 +40,8 @@ test('contract: version 1, name ai-brain, exactly 8 memory.* tools', async (t) =
     assert.ok(typeof td.description === 'string' && td.description.length > 0);
     assert.ok(td.inputSchema && td.inputSchema.type === 'object');
   }
-  assert.strictEqual(mod.VERSION, '0.0.13');
+  const pkg = JSON.parse(await fsp.readFile(path.join(__dirname, '..', 'package.json'), 'utf8')); // 版本契约动态化:VERSION 必须与 package.json 一致,硬编码会在每次发版时失真
+  assert.strictEqual(mod.VERSION, pkg.version);
 });
 
 test('init + callTool: save routed with identity; guest gating via null identity', async (t) => {
@@ -128,4 +129,10 @@ test('resolveIdentity: issued token resolves to identity; bad token null', async
   assert.strictEqual(resolved.agent_label, 'builder');
   assert.strictEqual(plugin2.resolveIdentity('not-a-real-token-aaaaaaaaaaaaaaaaaaaaaaaaaaaa'), null, 'unknown token -> null (guest)');
   await plugin2.shutdown();
+});
+
+test('version sync: VERSION equals package.json (drift guard, 0.0.16.3)', async () => {
+  const mod = await import('../dist/index.js');
+  const pkg = JSON.parse(await fsp.readFile(path.join(__dirname, '..', 'package.json'), 'utf8'));
+  assert.strictEqual(mod.VERSION, pkg.version, 'src/index.ts VERSION must equal package.json version');
 });
