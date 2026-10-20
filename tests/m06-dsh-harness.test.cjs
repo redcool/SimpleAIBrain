@@ -222,7 +222,7 @@ test('auto digest: idle undigested dsh session -> spool auto entry; consolidator
   assert.ok(auto1.importance <= 0.6, 'importance hard-capped at 0.6');
 });
 
-test('auto digest: human digest takes priority; off by default', async (t) => {
+test('auto digest: default on; explicit false disables; human digest takes priority', async (t) => {
   const { mod, store, dataDir, root } = await mk(t);
   const watchDir = path.join(root, 'dsh-home', 'sessions');
   const wsDir = path.join(root, 'ws2');
@@ -234,13 +234,13 @@ test('auto digest: human digest takes priority; off by default', async (t) => {
   const bj = { studio: 's1', member: 'local', agent_label: 'tester', token: 't'.repeat(40) };
   await fsp.writeFile(path.join(wsDir, '.brain.json'), JSON.stringify(bj));
   await ageArt(art);
-  const off = new mod.IngestWorker({ dataDir, store, logger: function () {}, watch: { claude: null, codex: null, dsh: watchDir }, dshIdleMs: 1000 });
+  const off = new mod.IngestWorker({ dataDir, store, logger: function () {}, watch: { claude: null, codex: null, dsh: watchDir }, dshIdleMs: 1000, autoDigest: false });
   await off.reconcile();
-  let spoolDir = path.join(store.root, '_spool');
+  const spoolDir = path.join(store.root, '_spool');
   let empty = true;
   try { empty = (await fsp.readdir(spoolDir)).filter((f) => f.endsWith('.json')).length === 0; } catch (e) { empty = true; }
-  assert.ok(empty, 'autoDigest off by default: no spool');
-  const worker = new mod.IngestWorker({ dataDir, store, logger: function () {}, watch: { claude: null, codex: null, dsh: watchDir }, dshIdleMs: 1000, autoDigest: true });
+  assert.ok(empty, 'explicit false disables auto digest');
+  const worker = new mod.IngestWorker({ dataDir, store, logger: function () {}, watch: { claude: null, codex: null, dsh: watchDir }, dshIdleMs: 1000 });
   const humanHash = mod.sha256hex('human digest');
   await fsp.mkdir(spoolDir, { recursive: true });
   await fsp.writeFile(path.join(spoolDir, humanHash.slice(0, 16) + '.json'), JSON.stringify({ ts: new Date().toISOString(), session_id: 'session-auto-2', kind: 'digest', hash: humanHash, identity: 's1/local/tester', content: '人工摘要' }));

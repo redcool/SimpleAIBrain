@@ -90,7 +90,7 @@ export function createBrainPlugin(): BrainPlugin {
           drainIntervalMs: ingestCfg.drainIntervalMs,
           reconcileIntervalMs: ingestCfg.reconcileIntervalMs,
           dshIdleMs: ingestCfg.dshIdleMs,
-          autoDigest: ingestCfg.autoDigest === true,   // 0.0.14 默认关,config 显式开启
+          autoDigest: ingestCfg.autoDigest !== false,  // 0.0.14.1 默认开:登记即全管道;显式 false 关闭
         });
         state.ingestWorker.start();
       }

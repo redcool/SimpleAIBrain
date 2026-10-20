@@ -108,7 +108,7 @@ worker(hub 侧):
 
 ### 4. 成本与失败
 
-每会话一次 LLM 调用;复用 `maxSessionsPerRun`(20)上限;LLM 失败按现成语义记 skip、游标不动、下轮重试。配置 `aiBrain.ingest.autoDigest: true | false`,**默认 false**(成本敏感,由用户显式开启)。实现:0.0.14.0(每轮上限 10 条、正文上限 16000 字、LLM 调用发生在巩固器侧)。
+每会话一次 LLM 调用;复用 `maxSessionsPerRun`(20)上限;LLM 失败按现成语义记 skip、游标不动、下轮重试。配置 `aiBrain.ingest.autoDigest: true | false`,**默认 true(0.0.14.1 起)**:登记即全管道;agent 正常提交摘要时补位扫描零成本,只有"忘提交"的会话才消耗 LLM。成本护栏:每轮上限 10 条、每会话至多一次、LLM 调用发生在巩固器侧(受 maxSessionsPerRun 管控);显式 false 关闭。
 
 ### 5. 验收标准
 
