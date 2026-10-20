@@ -1,0 +1,8 @@
+{
+  "ts": "2026-10-19T02:49:49.448Z",
+  "session_id": "session-dc11e207-f30a-4cd0-87fa-f0984e320f69",
+  "kind": "digest",
+  "hash": "0385047259e3e16c487f50cd05caca195298a9bc6abdec592e2123e8d7801603",
+  "identity": "s1/local/simpleaibrain",
+  "content": "本次对 SimpleAIBrain 当前完成度进行了只读审视。依据 docs/memory-design.md §4 状态表，M01-M08、M10-M11 已标注实现与测试，M09 联邦属于 v2 未实现；v1 核心链路已有先前真实闭环证据，见 session_memory.md D15、D17、D18。2026-10-19 实时 GET /brain/health 返回插件在线、12 条记忆；经带 _brainToken 的 memory.context 成功命中 4 条；memory.whoami 验证身份为 s1/local/simpleaibrain；memory.stats 返回 L1=8、L2=4、L3=0，12 条 active、隔离/待审核为 0，近 7 天查询 11 次命中条目 18 次，上次巩固 2026-10-18 零新增。综合判断是 v1 单工作区闭环已运行，不等于长期知识蒸馏或跨工作室功能完成。审核中发现待确认风险：src/tools/dispatch.ts memory.save 写入 stability=1.0，而 src/model/scoring.ts 与 M03 文档已采用按层小时默认值；应补直接 save 后衰减回归用例。记忆上下文部分中文出现替换字符，建议检查巩固来源及编码。主设计文档顶部仍写实现未开始，与 §4 状态表冲突；package.json 版本 0.0.13 与提交纪律版本 0.0.13.11 有同步歧义。npm test 在当前 DSH 沙箱因 Node 子进程 spawn EPERM 未得到完整通过结论，须在允许子进程的环境复验。优先级：修正衰减路径并回归；校正编码和进度文档；验证 L2→L3 真实闭环及恢复演练，再推进 M09。"
+}

@@ -1,0 +1,127 @@
+
+> simple-ai-brain@0.0.13 test
+> npm run build && node --test tests/*.test.cjs
+
+
+> simple-ai-brain@0.0.13 build
+> tsc
+
+✔ contract: version 1, name ai-brain, exactly 8 memory.* tools (70.637ms)
+✔ init + callTool: save routed with identity; guest gating via null identity (24.7695ms)
+✔ onToolEvent: matched tools logged to L0; memory.* and unmatched excluded (84.0236ms)
+✔ onToolEvent: global switch off; truncation; secret redaction (74.7249ms)
+✔ onToolEvent: oversized args truncated; secret keys redacted (86.1652ms)
+✔ registerRoutes: /brain/health reports entries; shutdown flushes reinforcement (44.5278ms)
+✔ resolveIdentity: issued token resolves to identity; bad token null (16.5335ms)
+✔ roundtrip: upsert -> indexed -> readBody returns body without frontmatter (93.8204ms)
+✔ upsert same id twice: no duplicate file, content updated (23.8051ms)
+✔ moveEntry L1 to L2: old gone, new exists, layer=2 (26.3395ms)
+✔ patchMeta: allowed fields apply; layer rejected; unknown id errors (23.805ms)
+✔ iterateByScope: archived excluded by default; filters work (31.493ms)
+✔ appendLog: L0-log/YYYY-MM/<agent>.jsonl appends lines (10.1521ms)
+✔ broken YAML -> quarantined, not indexed, no crash (21.1495ms)
+✔ leftover tmp file: ignored by scan, cleaned on init (24.2413ms)
+✔ external file -> rescan() picks it up (18.2981ms)
+✔ studio/member scope paths; same title different id not overwritten (36.4634ms)
+[file-store] quarantined unparseable file: 2026-10-14_broken.md :: yaml parse failed: Flow sequence in block collection must be sufficiently indented and end with a ] at line 2, column 1:
+
+id: [unclosed
+body: whatever
+^
+
+✔ gitCommitIfRepo: false for non-repo; commits inside repo (560.203ms)
+✔ scoring: dt=0 gives R=importance; exp decay over S; future clamped (69.6042ms)
+✔ strengthen: S grows by (1+k); k=0 is no-op (1.7838ms)
+✔ decaySweep: archives low-R actives, skips pinned and non-active (2.6613ms)
+✔ state machine: legal edges pass, illegal rejected (superseded is terminal) (2.1297ms)
+✔ promotion L1->L2: same-topic group or >=2 sessions + access>=3 (2.3236ms)
+✔ promotion L2->L3: 3 sessions, or imp>=0.8+2 refs, or pin; L3 never (2.2037ms)
+✔ conflict: low-priority supersedes; high-priority goes needs_review (1.8401ms)
+✔ inheritProvenance: new entry inherits old chain, dedup, old untouched (2.1204ms)
+✔ integration: pin skips decay; archive->restore roundtrip via store (55.7176ms)
+✔ relevance: tags/title/body hit types scored distinctly (72.3605ms)
+✔ source-chain masking: L3 hit masks its L1 origin in context; search still shows both (44.9315ms)
+✔ budget: output within budget; L3 kept first; L1 truncated (52.1564ms)
+✔ review loop: access_count/last_access/S updated after flush; recall-log has line (27.7029ms)
+✔ anti-injection header first line; empty store returns empty block without error (7.2018ms)
+✔ fallback: irrelevant query still returns recency-ranked actives (32.402ms)
+✔ summarize: 3 sessions -> 3 L1 entries with session citations (179.0699ms)
+✔ idempotent: same input twice -> zero additions on second run (85.4658ms)
+✔ reconcile: cursor file lost -> rebuilt from L1 entries, no duplicates (74.6157ms)
+✔ cap + resume: maxSessionsPerRun=2, two runs equivalent to one (65.3435ms)
+✔ LLM failure: session skipped, run ends normally, retried next run (65.3033ms)
+✔ merge + conflicts: LLM nominates, engine adjudicates per M03 rules (65.1732ms)
+✔ distill: evidence-qualified L2 -> atomic L3; not re-distilled (33.3631ms)
+✔ decay: low-R active archived; pinned survives (27.8365ms)
+✔ git: run ends with data/ commit containing run id (433.3058ms)
+✔ singleton lock: concurrent second run reports singletonSkipped (94.953ms)
+✔ M11 mandatory: spool content redacted before LLM extract (secrets never leave) (14.9306ms)
+✔ extract: LLM-generated title becomes entry title; fallback keeps session id (17.3108ms)
+✔ parseJsonOut repairs trailing commas in LLM output (2.2513ms)
+✔ run log: daily jsonl written with trigger and report (13.821ms)
+✔ distill cap: at most 5 L3 atoms per L2 (28.3403ms)
+✔ nextDailyDelayMs: aligned daily scheduling (0.0.15.1) (3.0864ms)
+✔ dsh-jsonl parser: framed zstd artifact -> user/assistant text, redacted into L0 (103.3861ms)
+✔ scanZstdFrames: torn trailing frame skipped, complete frames decoded (7.4114ms)
+✔ extractDshMeta: header cwd + last title wins (9.2997ms)
+✔ ingestOne: identity required (opt-in premise) (9.9713ms)
+✔ dsh-jsonl drift: malformed lines over 30 percent rejected (9.7513ms)
+✔ reconcile dsh: enrollment gate, ignore prefix, hash dedupe, manifest row deletion (76.2915ms)
+✔ enroll script: writes .brain.json, registers token, refuses re-run without force (452.6127ms)
+✔ auto digest: idle undigested dsh session -> spool auto entry; consolidator caps importance (54.0021ms)
+✔ auto digest: default on; explicit false disables; human digest takes priority (16.9106ms)
+✔ ingest via transcript_path: parsed, redacted, L0 logged, manifest recorded (103.0889ms)
+✔ idempotent: same session+hash -> duplicate, no second L0 line (20.9268ms)
+✔ unknown harness and parser drift are rejected, not guessed (10.103ms)
+✔ spool drain: hook note replayed and removed; re-drain adds nothing (25.5825ms)
+✔ reconcile claude: unenrolled identity rejected (dormant until cwd lookup) (15.5514ms)
+✔ redactText: prefix patterns, sensitive field names, truncation (6.4172ms)
+✔ identity from event lands in L0 agent_label (14.7562ms)
+✔ same token resolves to same id; rotate keeps id, kills old token (101.1521ms)
+✔ concat-string attack: id string is not a token; tokens unique per issue (13.1937ms)
+✔ guest: search/context allowed; save/stats/edit denied (2.1529ms)
+✔ agent token: edit/review_list denied with member-token hint; save ok (2.0091ms)
+✔ member token (empty agent_label): full access (1.7877ms)
+✔ .brain.json: invalid fields error with suggestion; valid parses (11.2675ms)
+✔ revoke: mapping removed, memory ownership untouched (id unchanged) (7.9936ms)
+✔ registry hot-reload: token enrolled by another process is recognized without reload call (5.6154ms)
+   [baseline] tool description total chars = 265
+✔ descriptions: 8 tools, total chars recorded under cap (90.42ms)
+✔ save: happy path -> L1 candidate, created_by=agent:<id>; readable param errors (30.8562ms)
+✔ permissions per matrix: guest/agent/member lines (27.1146ms)
+✔ search: text filter, visibility isolation (agent vs member vs guest) (50.1377ms)
+✔ context: anti-injection header, budget heuristic (28.2757ms)
+✔ submit_session: idempotent by hash; readable error when no content/path (11.2696ms)
+✔ review_list + edit: resolve/forget/restore/pin per state machine (54.4162ms)
+✔ guest context zero-hit carries _brainToken hint; identified caller has none (16.3823ms)
+✔ memory.save uses layer-1 stability (72h); decay horizon sanity; body roundtrip clean (16.7223ms)
+✔ agent studio save = consensus proposal (needs_review), invisible until resolved (106.5272ms)
+✔ member resolve activates; studio entry wins prior and is visible across members (37.0291ms)
+✔ member supersede writes provenance superseded_by = consensus id (27.6536ms)
+✔ agents cannot resolve or supersede (member gate) (10.9075ms)
+✔ member direct studio save stays active (no review needed) (11.9416ms)
+✔ M10 stats: valid JSON on empty and full store; scopes/recall_7d/consolidation present (116.0217ms)
+✔ M10 recall-log replay: every logged id resolves to an entry (incl. superseded) (43.2285ms)
+✔ M10 review summary: consolidation run end logs needs_review + quarantined counts (40.3659ms)
+✔ M10 self-exclusion: recall-log content never counted as entries (16.2588ms)
+✔ M11 poison labeling: context block first line carries data-not-instruction tag (17.4171ms)
+✔ M11 redaction: three sources (tool args / session body / imported md) all masked (12.4191ms)
+✔ M11 member exit: subtree removed, stats consistent, git records it (488.4269ms)
+Cloning into 'C:\\Users\\Admin\\AppData\\Local\\Temp\\m10m11-3hPyhR\\restore'...
+done.
+✔ M11 restore drill: clone data/ repo, fresh store stats match (516.0735ms)
+✔ retractSession: L0 rows of deleted session physically removed, others kept, malformed preserved (95.1116ms)
+✔ retractSession: spool files of session removed, others kept (15.6984ms)
+✔ retractSession: L1 sole dead source -> archived; pinned -> needs_review (46.1006ms)
+✔ retractSession: L2 partial survivor stripped and active; all dead -> needs_review (33.9399ms)
+✔ deadDshSessions: manifest dsh rows vs disk; dir missing -> unavailable (10.1085ms)
+✔ reconcile e2e: enrolled session ingested, artifact deleted, next reconcile retracts (28.163ms)
+✔ reconcile safety valve: whole dsh dir missing -> retraction skipped, nothing lost (7.4571ms)
+ℹ tests 102
+ℹ suites 0
+ℹ pass 102
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1767.0343

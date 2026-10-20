@@ -1,0 +1,31 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import os from 'node:os';
+import zlib from 'node:zlib';
+const root = await fs.mkdtemp(path.join(os.tmpdir(), 'dbg-'));
+const dataDir = path.join(root, 'data');
+const mod = await import('../dist/index.js');
+const store = new mod.FileStore(path.join(dataDir, 'memory'));
+await store.init();
+function frame(t) { return zlib.zstdCompressSync(Buffer.from(t, 'utf8')); }
+const wsDir = path.join(root, 'ws');
+await fs.mkdir(wsDir, { recursive: true });
+const watchDir = path.join(root, 'dsh-home', 'sessions');
+const sessDir = path.join(watchDir, '--X-tmp--', 'session-auto-1');
+await fs.mkdir(sessDir, { recursive: true });
+const header = JSON.stringify({ type: 'session', version: 3, id: 'session-auto-1', createdAt: 1791945823629, cwd: wsDir });
+const user = JSON.stringify({ type: 'user/message', seq: 2, time: 2, data: { message: { role: 'user', content: [{ type: 'text', text: 'hello auto' }] } } });
+const art = path.join(sessDir, 'session.v3.jsonl.zstd');
+await fs.writeFile(art, Buffer.concat([header, user].map((l) => frame(l + '\n'))));
+const bj = { studio: 's1', member: 'local', agent_label: 'tester', token: 't'.repeat(40) };
+await fs.writeFile(path.join(wsDir, '.brain.json'), JSON.stringify(bj));
+const old = new Date(Date.now() - 60000);
+await fs.utimes(art, old, old);
+const worker = new mod.IngestWorker({ dataDir, store, logger: (m) => console.log('LOG:', m), watch: { claude: null, codex: null, dsh: watchDir }, dshIdleMs: 1000, autoDigest: true });
+const n = await worker.reconcile();
+console.log('reconcile returned:', n);
+const mf = JSON.parse(await fs.readFile(path.join(dataDir, 'ingest-manifest.json'), 'utf8'));
+console.log('manifest row:', JSON.stringify(mf.sessions['session-auto-1']));
+try { console.log('spool:', await fs.readdir(path.join(store.root, '_spool'))); } catch (e) { console.log('spool missing:', e.message.slice(0, 60)); }
+const r2 = await worker.autoDigestPass({ dir: watchDir, idleMs: 1000 }, mf);
+console.log('manual autoDigestPass returned:', r2);

@@ -1,0 +1,8 @@
+{
+  "ts": "2026-10-16T06:56:22.274Z",
+  "session_id": "session-b756b0af-67f2-46f4-95dd-1976147ad59a",
+  "kind": "digest",
+  "hash": "85d4795c3da092a3bef35fd278538b3634bd8a235c625ddab8e631c658b3593c",
+  "identity": "s1/local/simpleaibrain",
+  "content": "本会话(SimpleAIBrain 测试基站,记忆系统测试)关键结论:\n1) 记忆读写链路验证通过:.brain.json 取 token → hub JSON-RPC POST http://127.0.0.1:45678/rpc(method=tools/call),token 一律作为工具参数 _brainToken 传入(非 HTTP 头);whoami 返回 s1/local/simpleaibrain、agent 角色、7 个 memory.* 工具可用;tmp/step*.mjs 为可复用调用样例。\n2) 库况(memory.stats):L1×6、L2×4、L3×0,共 10 条 active,全部出自 2026-10-15 会话 session-b2fe0496。上次审计『巩固与检索零实跑』已部分解除:巩固管线实跑过(run_mv9fvcgf5ywp,本轮无新增归并),4 条 L2 均为 consolidator 生成;L3 仍为 0,data 目录仍无备份。\n3) 定向检索 SimpleMcpServer 结论:记忆库没有以 SimpleMcpServer 为主角的条目,10 条全是 SimpleAIBrain 分层设计决策;SimpleMcpServer 仅作为 hub 宿主被顺带记录——hub 数据目录由其 config.json aiBrain.path 推导为 SimpleAIBrain/data(出处 mem_01M4ZGYBN6WTDV4H86S9J6P7YQ);enroll.mjs 探测链为 $DSH_BRAIN_DATA → aiBrain.dataDir → aiBrain.path/data → 兜底 H:/ai_works/SimpleMcpServer/data(出处 scripts/enroll.mjs)。hub 内部结构从未入记忆,属记忆边界空白,后续讨论 hub 需现场读仓库。\n4) 新知识:检索层对泛词(hub/配置/数据目录)会做低分匹配召回;定向主题若库中无专条,用泛词检索可确认『无专条』这一事实本身。"
+}

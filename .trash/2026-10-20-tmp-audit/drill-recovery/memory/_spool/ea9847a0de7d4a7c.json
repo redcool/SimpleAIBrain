@@ -1,0 +1,8 @@
+{
+  "ts": "2026-10-15T11:03:08.669Z",
+  "session_id": "session-b2fe0496-b231-4996-90b2-e7d45fa674cd",
+  "kind": "digest",
+  "hash": "ea9847a0de7d4a7cfffb423e5fc393813780583f182647f7c990b0589474506d",
+  "identity": "s1/local/simpleaibrain",
+  "content": "身份与安全:SimpleAIBrain 身份层决定:agent=每工作区持久实体,token 即密码,.brain.json 自备 32+ 随机 token,registry 存 SHA-256;hub 从工具参数摘除 _brainToken 解析身份,缺失按访客只读;md5(身份) 方案被否——身份串可枚举会破坏防投毒。脱敏三强制点:工具流水参数、会话正文(巩固送 LLM 前也必须过 redactText)、导入 md。危险工具门控沿用 hub 配置。"
+}

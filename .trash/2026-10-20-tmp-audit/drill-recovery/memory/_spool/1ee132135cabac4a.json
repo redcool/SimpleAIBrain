@@ -1,0 +1,8 @@
+{
+  "ts": "2026-10-15T11:03:08.662Z",
+  "session_id": "session-b2fe0496-b231-4996-90b2-e7d45fa674cd",
+  "kind": "digest",
+  "hash": "1ee132135cabac4ab51ac2b73c2e8bad5d2f6dcf75f5cef0dd8cdd0055027cdc",
+  "identity": "s1/local/simpleaibrain",
+  "content": "巩固管线:SimpleAIBrain 巩固层决定:spool(_spool/hash16.json)→抽取(L0→L1)→归并(同 agent 未归并 L1≥minMergeGroup 触发 LLM 判同题合并,产出 L2,源 L1 转 superseded)→蒸馏(反复出现的 L2 提炼 L3 原则)→维护(低重要度衰减归档,pinned 豁免)。单飞锁防并发;LLM 失败按 session 记 skip、游标不动、下轮重试;游标文件 _consolidation-state.json 记 processed_spool。抽取提示词要求 LLM 生成主题标题与 importance 标尺(0.9-1.0 仅限关键决策)。"
+}

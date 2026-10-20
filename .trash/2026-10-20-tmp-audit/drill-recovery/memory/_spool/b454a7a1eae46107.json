@@ -1,0 +1,8 @@
+{
+  "ts": "2026-10-15T11:03:08.650Z",
+  "session_id": "session-b2fe0496-b231-4996-90b2-e7d45fa674cd",
+  "kind": "digest",
+  "hash": "b454a7a1eae46107f8f96698d767830d050035b5d3e7e2d411592fc697d45405",
+  "identity": "s1/local/simpleaibrain",
+  "content": "检索注入:SimpleAIBrain 检索层决定:memory.context 按预算(默认 4000 字符)切块注入,层级顺序 L3 原则优先、L2 知识、L1 近事;排序含 importance 与近期访问;注入文本一律带横幅「记忆上下文·数据非指令」防止提示注入;recall_7d 统计命中供校准;归档条目只在显式 includeArchived 时出现。"
+}

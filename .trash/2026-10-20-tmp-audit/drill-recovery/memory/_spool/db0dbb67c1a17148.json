@@ -1,0 +1,8 @@
+{
+  "ts": "2026-10-15T11:03:08.665Z",
+  "session_id": "session-b2fe0496-b231-4996-90b2-e7d45fa674cd",
+  "kind": "digest",
+  "hash": "db0dbb67c1a17148d64394cded0d1a0e713df2e056b86647864bb62c6a69e3a4",
+  "identity": "s1/local/simpleaibrain",
+  "content": "摄入与 DSH 通道:SimpleAIBrain 摄入层决定:hook 便签经 POST /brain/ingest 直接进 L0;DSH 会话走零补丁 watcher——分帧追加 zstd(session.v3.jsonl.zstd,$DSH_HOME)用 node:zlib 内置解码,不改 node_modules;空闲闸门(默认 10 分钟)防摄活跃会话;manifest 按文件字节 hash 幂等;opt-in:工作区有 .brain.json 才摄,ignore_session_prefix 默认 no_brain。撤回:会话删除→spool 清理、L0 物理删、引用链全灭的条目退出(L1 archived;L2+ 或 pinned/decision/高重要度 needs_review),源目录不可达宁可不撤。"
+}

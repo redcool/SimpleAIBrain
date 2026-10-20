@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "last_run": {
+    "run_id": "run_mveotng5ih1c",
+    "finished_at": "2026-10-19T03:21:23.233Z",
+    "summarized": 0,
+    "merged": 0,
+    "distilled": 0,
+    "archived": 0
+  },
+  "processed_spool": {
+    "78af90f2c71c7e7f": "mem_01M592SYGNZ675F0MHD5HD03P8",
+    "9ea46277899cfd62": "mem_01M592TBW3NBK9MKP6SEK0NVK5",
+    "baec5cd2e3e0e1e0": "mem_01M592TGD2535243J5AQSHGZQW"
+  }
+}

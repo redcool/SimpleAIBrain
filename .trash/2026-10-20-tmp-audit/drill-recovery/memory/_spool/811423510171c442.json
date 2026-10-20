@@ -1,0 +1,8 @@
+{
+  "ts": "2026-10-15T10:08:16.716Z",
+  "session_id": "session-b2fe0496-b231-4996-90b2-e7d45fa674cd",
+  "kind": "digest",
+  "hash": "811423510171c442c4aaba3b2f9ebb701fab92aeeb0afb123aa824bdc52bbb68",
+  "identity": "s1/local/simpleaibrain",
+  "content": "SimpleAIBrain 记忆系统本会话决定:\n1) DSH 接入走零补丁 watcher:会话落盘是分帧追加 zstd(session.v3.jsonl.zstd,数据根 $DSH_HOME),node:zlib 内置解码加帧结构扫描,不改 DSH 的 node_modules。\n2) opt-in:工作区有 .brain.json 才进记忆;没有 = 停止新增但不抹历史;未登记不记 manifest,之后补登记连历史一起补摄。\n3) token 保留自备随机串(身份与凭证分离:改 agent_label 不换 token);enroll 命令生成随机 token 并登记 TokenRegistry;md5(身份) 方案被否——身份串可枚举,会让伪造身份写记忆的攻击成立。\n4) ignore_session_prefix 默认 no_brain:会话标题命中前缀就永不摄入;置空串关闭。\n5) 撤回语义:删除会话 → 该会话 spool digest 删除、L0 行物理删除、引用链上 source_ids 全灭的条目退出(L1 archived 可逆;L2 以上或 pinned/decision/高重要度进 needs_review 人工确认);部分幸存的佐证保留。目录不可达(盘未挂载)= 源不可用,宁可不撤。\n6) 审计结论:摄入骨架达到生产级;巩固与检索从未在真实数据上运行(价值管道零实跑);L0 快照重复是已知取舍;data 目录尚无备份。\n7) 测试基站:SimpleAIBrain 工作区登记为 s1/local/simpleaibrain;hub 数据目录由 aiBrain.path 推导为 SimpleAIBrain/data。"
+}

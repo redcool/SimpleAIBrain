@@ -1,0 +1,8 @@
+{
+  "ts": "2026-10-15T11:03:08.641Z",
+  "session_id": "session-b2fe0496-b231-4996-90b2-e7d45fa674cd",
+  "kind": "digest",
+  "hash": "ac90c0c0d8f0b26c5456b038cee2d4b2224ee92603b2a5c8e6329eecc99348e0",
+  "identity": "s1/local/simpleaibrain",
+  "content": "存储与生命周期:SimpleAIBrain 存储层决定:七操作接口(init/rescan/scanMeta/readBody/upsertEntry/moveEntry/patchMeta/appendLog/iterateByScope),FileStore 以目录为地址、frontmatter 为事实源,md 文件落 L1/L2/L3 子目录。主键用 mem_<ULID>。生命周期五态:active/superseded/archived/needs_review;archived 可逆、显式 includeArchived 才可见;pinned 跳过衰减与自动覆盖;冲突消解走判定器——pinned、决策记录、importance≥0.8 一律 needs_review 人工确认,不做自动覆盖。"
+}
