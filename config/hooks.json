@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node H:/ai_works/SimpleAIBrain/scripts/memory-hook.mjs",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node H:/ai_works/SimpleAIBrain/scripts/memory-hook.mjs",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}
