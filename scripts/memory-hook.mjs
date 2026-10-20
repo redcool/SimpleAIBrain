@@ -47,8 +47,9 @@ async function main() {
   // 节流:SessionStart 恒注入并重置计时;UserPromptSubmit 间隔内跳过
   const sid = String(evt.session_id || cwd);
   const stateFile = path.join(STATE_DIR, crypto.createHash('sha1').update(sid).digest('hex').slice(0, 16) + '.json');
+  let st = null;
   try {
-    const st = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+    st = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
     if (eventName !== 'SessionStart' && process.env.SIMPLEBRAIN_HOOK_NO_THROTTLE !== '1') {
       if (Date.now() - (st.lastInject || 0) < PROMPT_THROTTLE_MS) die('throttled');
     }
@@ -57,11 +58,12 @@ async function main() {
   const bi = promptText.indexOf('[记忆上下文');
   if (bi >= 0) promptText = promptText.slice(0, bi);
   promptText = promptText.replace(/\s+/g, ' ').trim().slice(0, 200);
+  if (promptText && promptText.length < 4 && eventName !== 'SessionStart') die('trivial-prompt');
   const prompt = promptText || FALLBACK_QUERY;
   const query = prompt || FALLBACK_QUERY;
   const body = {
     jsonrpc: '2.0', id: 1, method: 'tools/call',
-    params: { name: 'memory.context', arguments: { query, _brainToken: bj.token } },
+    params: { name: 'memory.context', arguments: { query, _brainToken: bj.token, budget: 2000 } },
   };
   let resp;
   try {
@@ -77,10 +79,15 @@ async function main() {
   try { const inner = JSON.parse(payload); if (inner && typeof inner.text === 'string' && inner.text.trim()) payload = inner.text; } catch { /* 原样输出 */ }
   payload = payload.trim();
   if (!payload) die('empty-payload');
+  const hash = crypto.createHash('sha1').update(payload).digest('hex').slice(0, 16);
+  if (eventName !== 'SessionStart' && process.env.SIMPLEBRAIN_HOOK_NO_THROTTLE !== '1') {
+    if (st && st.lastHash === hash) die('same-content');
+    if (Date.now() - (st && st.lastInject || 0) < 10 * 60 * 1000) die('rate-limited');
+  }
   trace({ step: 'inject', chars: payload.length });
   try {
     fs.mkdirSync(STATE_DIR, { recursive: true });
-    fs.writeFileSync(stateFile, JSON.stringify({ lastInject: Date.now(), event: eventName, query: query.slice(0, 80) }) + '\n');
+    fs.writeFileSync(stateFile, JSON.stringify({ lastInject: Date.now(), lastHash: hash, event: eventName, query: query.slice(0, 80) }) + '\n');
   } catch { /* 状态失败不影响注入 */ }
   const evName = (typeof evt !== 'undefined' && evt.hook_event_name) || 'UserPromptSubmit';
   const structured = JSON.stringify({ hookSpecificOutput: { hookEventName: evName, additionalContext: payload } });
