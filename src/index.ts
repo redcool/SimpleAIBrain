@@ -23,7 +23,7 @@ export * from './plugin/contract.js';
 export { createBrainPlugin, redactArgs, matchesPattern } from './plugin/brain-plugin.js';
 export { extractPrompt, mergePrompt, distillPrompt, parseJsonOut } from './consolidation/prompts.js';
 export type { ExtractOut, MergeOut, DistillOut } from './consolidation/prompts.js';
-export { Consolidator } from './consolidation/consolidator.js';
+export { Consolidator, nextDailyDelayMs } from './consolidation/consolidator.js';
 export type { ConsolidatorOptions, RunReport, SkippedSession } from './consolidation/consolidator.js';
 export { IngestWorker, PARSERS, sha256hex, dshHome } from './ingest/worker.js';
 export { scanZstdFrames, decodeDshArtifact, parseDshJsonlText, extractDshMeta } from './ingest/dsh.js';

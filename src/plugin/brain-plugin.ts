@@ -1,12 +1,13 @@
 import crypto from 'node:crypto';
 import { join } from 'node:path';
+import fs from 'node:fs/promises';
 import type { Identity } from '../types.js';
 import { FileStore } from '../store/file-store.js';
 import { TokenRegistry } from '../identity/registry.js';
 import { TOOL_DEFS } from '../tools/definitions.js';
 import { callTool as dispatchCallTool } from '../tools/dispatch.js';
 import { getBatcher } from '../retrieval/engine.js';
-import { Consolidator } from '../consolidation/consolidator.js';
+import { Consolidator, nextDailyDelayMs } from '../consolidation/consolidator.js';
 import { IngestWorker } from '../ingest/worker.js';
 import { redactArgs } from '../ingest/redact.js';
 import { nowISO } from '../util/fsutil.js';
@@ -50,7 +51,7 @@ export function createBrainPlugin(): BrainPlugin {
       state.registry = new TokenRegistry(join(ctx.dataDir, 'memory', '_identity', 'tokens.json'));
       await state.registry.load();
       // M05:巩固器 + 每日定时(schedule=off 关闭;LLM 失败由巩固器按 session 跳过)
-      const consolidCfg = (ctx.brainConfig.consolidation || {}) as { schedule?: string; maxSessionsPerRun?: number };
+      const consolidCfg = (ctx.brainConfig.consolidation || {}) as { schedule?: string; maxSessionsPerRun?: number; dailyAt?: string };
       if (consolidCfg.schedule !== 'off') {
         state.consolidator = new Consolidator(state.store, {
           dataDir: ctx.dataDir,
@@ -70,10 +71,31 @@ export function createBrainPlugin(): BrainPlugin {
           logger: ctx.logger,
           maxSessionsPerRun: consolidCfg.maxSessionsPerRun,
         });
-        state.consolTimer = setInterval(() => {
-          void state.consolidator?.run('schedule').catch(() => { /* 下轮重试 */ });
-        }, 24 * 60 * 60 * 1000);
-        if (typeof state.consolTimer.unref === 'function') state.consolTimer.unref();
+        // 0.0.15.1:对齐每日固定时刻(默认 04:30,config consolidation.dailyAt 可改);替代"自启动 24h"——hub 重启不再无限顺延巩固
+        const dailyAt = typeof consolidCfg.dailyAt === 'string' && /^\d{1,2}:\d{2}$/.test(consolidCfg.dailyAt) ? consolidCfg.dailyAt : '04:30';
+        const scheduleNext = (): void => {
+          const delay = nextDailyDelayMs(new Date(), dailyAt);
+          const t = setTimeout(() => {
+            void state.consolidator?.run('schedule').catch(() => { /* 下轮重试 */ });
+            scheduleNext();
+          }, delay);
+          if (typeof t.unref === 'function') t.unref();
+          state.consolTimer = t;
+          ctx.logger('[ai-brain] consolidation daily at ' + dailyAt + ' (next in ' + Math.round(delay / 60000) + ' min)');
+        };
+        scheduleNext();
+        // 启动追赶:spool 有未消化条目 → 90s 后先跑一轮,积压不再等整点
+        try {
+          const stateRaw = await fs.readFile(join(ctx.dataDir, 'consolidation-state.json'), 'utf8').then((x) => JSON.parse(x)).catch(() => null);
+          const proc = (stateRaw && stateRaw.processed_spool) || {};
+          const spoolFiles = await fs.readdir(join(ctx.dataDir, 'memory', '_spool')).catch(() => [] as string[]);
+          const pending = spoolFiles.filter((f) => f.endsWith('.json') && !proc[String(f).replace(/\.json$/, '')]);
+          if (pending.length > 0) {
+            const ct = setTimeout(() => { void state.consolidator?.run('schedule').catch(() => { /* 下轮重试 */ }); }, 90_000);
+            if (typeof ct.unref === 'function') ct.unref();
+            ctx.logger('[ai-brain] consolidation catch-up: ' + pending.length + ' pending spool entries, running in 90s');
+          }
+        } catch { /* 结构异常 → 跳过追赶 */ }
       }
       // M06:摄入 worker(POST 语义 + spool 排空 + transcript 对账;ingest.enabled=false 关闭)
       const ingestCfg = (ctx.brainConfig.ingest || {}) as {

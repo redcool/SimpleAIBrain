@@ -256,3 +256,13 @@ test('distill cap: at most 5 L3 atoms per L2', async (t) => {
   const all = await allEntries(store);
   assert.strictEqual(all.filter((e) => e.layer === 3).length, 5, 'hard cap 5');
 });
+
+test('nextDailyDelayMs: aligned daily scheduling (0.0.15.1)', async (t) => {
+  const { mod } = await mk(t);
+  const f = mod.nextDailyDelayMs;
+  assert.strictEqual(f(new Date('2026-10-20T03:00:00'), '04:30'), 90 * 60 * 1000);
+  assert.strictEqual(f(new Date('2026-10-20T05:00:00'), '04:30'), 23.5 * 3600 * 1000);
+  assert.strictEqual(f(new Date('2026-10-20T04:30:00'), '04:30'), 24 * 3600 * 1000, 'exact time -> next day');
+  const d4 = f(new Date('2026-10-20T10:00:00'), 'bogus');
+  assert.ok(d4 > 0 && d4 <= 24 * 3600 * 1000, 'invalid at falls back to 04:30');
+});

@@ -354,3 +354,14 @@ export class Consolidator {
     return rep.toArchive.length;
   }
 }
+
+/** 每日固定时刻的下一次触发延时 ms;at 形如 "HH:MM"(0.0.15.1:对齐时刻,替代"自启动起 24h"——hub 重启不再无限顺延巩固) */
+export function nextDailyDelayMs(now: Date, at: string): number {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(at);
+  const hh = m ? Math.min(23, parseInt(m[1], 10)) : 4;
+  const mm = m ? Math.min(59, parseInt(m[2], 10)) : 30;
+  const t = new Date(now);
+  t.setHours(hh, mm, 0, 0);
+  if (t.getTime() <= now.getTime()) t.setDate(t.getDate() + 1);
+  return t.getTime() - now.getTime();
+}
