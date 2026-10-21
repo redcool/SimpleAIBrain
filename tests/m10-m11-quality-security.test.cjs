@@ -35,7 +35,7 @@ test('M10 stats: valid JSON on empty and full store; scopes/recall_7d/consolidat
   await entry(store, 1, 'agent', 'alice', 'builder');
   await entry(store, 2, 'member', 'alice', '');
   await entry(store, 3, 'studio', 'studio', '');
-  await mod.appendRecallLog(store, member, 'ulid 为何', ['x1', 'x2'], NOW);
+  await mod.appendRecallLog(store, member, 'ulid 为何', ['x1', 'x2'], new Date(Date.now() - 3600 * 1000));
   await fsp.writeFile(path.join(dataDir, 'consolidation-state.json'), JSON.stringify({ schema_version: 1, processed_spool: {}, last_run: { run_id: 'run_z', summarized: 3, merged: 1, distilled: 0, archived: 0 } }));
   const full = await mod.callTool({ identity: member, store }, 'memory.stats', {});
   assert.strictEqual(full.content.layers.L3, 1);
