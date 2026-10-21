@@ -18,6 +18,11 @@ const pipeDir = path.join(ws, '_pipeline');
 fs.mkdirSync(pipeDir, { recursive: true });
 const stateFile = path.join(pipeDir, 'state.json');
 const log = (m) => console.error('[pipeline] ' + m);
+const alertUser = (title, body) => {
+  try {
+    spawn('powershell', ['-NoProfile', '-Command', 'Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.MessageBox]::Show("' + String(body).replace(/["\r\n]/g, ' ').slice(0, 300) + '", "' + String(title).replace(/["\r\n]/g, ' ').slice(0, 80) + '")'], { detached: true, stdio: 'ignore' }).unref();
+  } catch {}
+};
 const localDate = () => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString();
 const nowHM = () => localDate().slice(11, 19);
 const today = () => localDate().slice(0, 10);
@@ -123,6 +128,7 @@ async function main() {
       plan.stages = plan.stages.slice(0, MAX_STAGES);
     } catch (e) {
       log('plan failed: ' + e.message.slice(0, 120));
+      alertUser('流水线计划失败', 'goal: ' + goal.slice(0, 80));
       fs.writeFileSync(stateFile, JSON.stringify({ ...state, stop: 'plan-failed: ' + e.message.slice(0, 120) }, null, 2));
       planner.kill(); process.exit(1);
     }
@@ -199,6 +205,45 @@ async function main() {
     st.status = done ? 'done' : 'failed';
     fs.writeFileSync(stateFile, JSON.stringify(state, null, 2));
     if (!done) { stop = 'stage-failed: ' + st.name; break; }
+    alertUser('流水线阶段失败', '阶段: ' + st.name + ' | 终态: ' + st.verdict + ' | 可断点重跑');
+  }
+  // ── 全局一致性终审(全部完成时) ──
+  if (!stop && state.stages.length > 1) {
+    log('finale: cross-stage consistency review');
+    const finale = await connect('finale').start();
+    try {
+      const fr = await finale.timo(finale.rpc('session/prompt', { sessionId: finale.sessionId, prompt: [{ type: 'text', text: '你是终审核验员。本工作区刚由多阶段流水线完成一组交付。请通读以下文件(自行用工具读取):\n' + state.stages.map((st) => '- ' + st.name + ': ' + (st.outputFile || '(见工作区)')).join('\n') + '\n【审查项】1)各文件之间年份/史实互不矛盾;2)命名与体量规范统一;3)各 Suno style 心境不雷同、不互斥(同系列可有共性但须各有处境特色);4)引用同一史实来源时表述一致。\n【输出】把审查报告写入工作区 _pipeline/consistency.md(发现的问题逐条列出并标注严重度:硬伤/建议;无问题也要写"未发现跨文件矛盾"),然后回复一行 JSON:{"issues":数字,"hard":硬伤数}。' }] }), PROMPT_TIMEOUT_MS, 'finale:prompt');
+      const m = fr.text.match(/\{[\s\S]*\}/);
+      let fin = { issues: -1, hard: -1 };
+      if (m) { try { fin = JSON.parse(m[0]); } catch {} }
+      state.finale = fin; fs.writeFileSync(stateFile, JSON.stringify(state, null, 2));
+      judgeLog('## 终审\n- **范围**: ' + state.stages.length + ' 阶段全部完成\n- **跨文件问题**: ' + JSON.stringify(fin) + '\n- **报告**: _pipeline/consistency.md');
+      log('finale: issues=' + JSON.stringify(fin));
+      if (fin.hard > 0) alertUser('流水线终审发现硬伤', '目标: ' + goal.slice(0, 60) + ' | 硬伤 ' + fin.hard + ' 处,详见 _pipeline/consistency.md');
+    } catch (e) {
+      if (/overflow/i.test(String(e && e.message))) {
+        log('finale overflow -> respawn with frugality rider');
+        try {
+          finale.kill();
+          const finale2 = await connect('finale2').start();
+          const fr2 = await finale2.timo(finale2.rpc('session/prompt', { sessionId: finale2.sessionId, prompt: [{ type: 'text', text: '你是终审核验员。上次审查因上下文过长失败。请分批工作:每次只读一份文件并立即把要点(每份≤200字)记入 _pipeline/consistency.md 草稿,全部读完后再写结论。审查对象与四项同前:各阶段交付文件、总纲、任务书。输出:报告写入 _pipeline/consistency.md,然后回复一行 JSON:{"issues":数字,"hard":硬伤数}。' }] }), PROMPT_TIMEOUT_MS, 'finale2:prompt');
+          const m2 = fr2.text.match(/\{[\s\S]*\}/);
+          if (m2) { try { state.finale = JSON.parse(m2[0]); } catch {} }
+          finale2.kill();
+        } catch (e2) { log('finale retry failed: ' + e2.message.slice(0, 100)); state.finale = { error: e2.message.slice(0, 100) }; }
+      } else { log('finale failed: ' + e.message.slice(0, 100)); state.finale = { error: e.message.slice(0, 100) }; }
+      fs.writeFileSync(stateFile, JSON.stringify(state, null, 2));
+      // 兜底:报告文件已落盘时,从文件读硬伤数并决定是否弹窗
+      const consPath = path.join(pipeDir, 'consistency.md');
+      if (fs.existsSync(consPath)) {
+        const cm = fs.readFileSync(consPath, 'utf8').match(/硬伤[^0-9]*(\d+)/);
+        const hardN = cm ? Number(cm[1]) : 0;
+        if (!state.finale || state.finale.hard === undefined) state.finale = { hard: hardN };
+        judgeLog('## 终审(兜底读取)\n- **报告**: _pipeline/consistency.md\n- **硬伤**: ' + hardN);
+        if (hardN > 0) alertUser('流水线终审发现硬伤', '目标: ' + goal.slice(0, 60) + ' | 硬伤 ' + hardN + ' 处,详见 _pipeline/consistency.md');
+      }
+    }
+    finale.kill();
   }
   // ── 汇总 ──
   if (!stop) stop = 'all-done';
