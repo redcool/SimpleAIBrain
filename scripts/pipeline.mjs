@@ -87,6 +87,14 @@ function judgeLog(entry) {
 // ── 文件硬检查 ──
 const fileGate = (outFile) => {
   if (!outFile) return { ok: true };
+  if (outFile.startsWith('glob:')) {
+    const parts = outFile.slice(5).split('*');
+    const hit = fs.readdirSync(ws).find((f) => parts.length === 2 && f.startsWith(parts[0]) && f.endsWith(parts[1]) && f.length > parts[0].length + parts[1].length);
+    if (!hit) return { ok: false, why: '无匹配文件: ' + outFile };
+    const sz = fs.statSync(path.join(ws, hit)).size;
+    if (sz < 20) return { ok: false, why: '匹配文件过小(' + sz + 'B): ' + hit };
+    return { ok: true, matched: hit };
+  }
   const p = path.join(ws, outFile);
   if (!fs.existsSync(p)) return { ok: false, why: '输出文件不存在: ' + outFile };
   const sz = fs.statSync(p).size;
