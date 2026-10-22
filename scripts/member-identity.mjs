@@ -14,7 +14,9 @@ function resolveDataDir() {
     if (c.aiBrain && c.aiBrain.dataDir) return c.aiBrain.dataDir;
     if (c.aiBrain && c.aiBrain.path) return path.join(c.aiBrain.path, 'data');
   } catch { /* 兜底 */ }
-  return 'H:/ai_works/SimpleAIBrain/data';
+  const selfData = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'data');
+  console.warn('[member-identity] 警告:hub config 不可读,dataDir 兜底到 ' + selfData);
+  return selfData;
 }
 const dataDir = resolveDataDir();
 const registry = new TokenRegistry(path.join(dataDir, 'memory', '_identity', 'tokens.json'));

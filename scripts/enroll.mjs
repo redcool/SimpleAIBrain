@@ -6,7 +6,7 @@
 //   node scripts/enroll.mjs [workspaceDir] [--studio s1] [--member local] [--agent <label>]
 //                          [--data-dir <hub data dir>] [--force]
 // Defaults: workspaceDir = cwd, studio = s1, member = local, agent = <workspace dir name>,
-//           data-dir = $DSH_BRAIN_DATA or H:/ai_works/SimpleMcpServer/data (hub default layout).
+//           data-dir = --data-dir > $DSH_BRAIN_DATA > hub config(aiBrain.dataDir ?? aiBrain.path/data) > <本仓库>/data(兜底,带警告).
 // Re-run without --force: prints current enrollment, changes nothing.
 // --force: issue a NEW token and rewrite .brain.json (old token stays valid until revoked).
 import fs from 'node:fs/promises';
@@ -26,7 +26,7 @@ for (let i = 0; i < argv.length; i++) {
   } else pos.push(argv[i]);
 }
 const ws = path.resolve(pos[0] || process.cwd());
-// data-dir 探测顺序:$DSH_BRAIN_DATA → 显式 flag → hub config(aiBrain.dataDir ?? aiBrain.path/data)→ SimpleMcpServer/data 兜底
+// data-dir 探测顺序:显式 flag → $DSH_BRAIN_DATA → hub config(aiBrain.dataDir ?? aiBrain.path/data)→ 本仓库 data 兜底
 function defaultDataDir() {
   try {
     const hubCfg = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'SimpleMcpServer', 'config.json');
@@ -34,7 +34,9 @@ function defaultDataDir() {
     if (c.aiBrain && c.aiBrain.dataDir) return c.aiBrain.dataDir;
     if (c.aiBrain && c.aiBrain.path) return path.join(c.aiBrain.path, 'data');
   } catch { /* 探测失败走兜底 */ }
-  return 'H:/ai_works/SimpleMcpServer/data';
+  const selfData = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'data');
+  console.warn('[enroll] 警告:hub config 不可读,dataDir 兜底到 ' + selfData + '(与 hub 实际路径可能分叉,注册前请确认或用 --data-dir 显式指定)');
+  return selfData;
 }
 const dataDir = path.resolve(flags['data-dir'] || process.env.DSH_BRAIN_DATA || defaultDataDir());
 function hubPort() {
