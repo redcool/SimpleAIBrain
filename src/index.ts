@@ -21,6 +21,7 @@ export type { ToolCtx, ToolResult } from './tools/dispatch.js';
 export { visibleTo } from './retrieval/visible.js';
 export * from './plugin/contract.js';
 export { createBrainPlugin, redactArgs, matchesPattern } from './plugin/brain-plugin.js';
+export { ensureMemberCredential } from './plugin/member-credential.js';
 export { extractPrompt, mergePrompt, distillPrompt, parseJsonOut } from './consolidation/prompts.js';
 export type { ExtractOut, MergeOut, DistillOut } from './consolidation/prompts.js';
 export { Consolidator, nextDailyDelayMs } from './consolidation/consolidator.js';

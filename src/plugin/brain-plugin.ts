@@ -50,6 +50,12 @@ export function createBrainPlugin(): BrainPlugin {
       await state.store.init();
       state.registry = new TokenRegistry(join(ctx.dataDir, 'memory', '_identity', 'tokens.json'));
       await state.registry.load();
+      // 0.0.16.15 用户建议:member 凭证自动保障(失败不阻塞插件启动)
+      try {
+        const { ensureMemberCredential } = await import('./member-credential.js');
+        const mc = await ensureMemberCredential(state.registry, ctx.dataDir);
+        if (mc.action !== 'exists') state.ctx && console.log('[ai-brain] member credential ' + mc.action + ': ' + mc.file);
+      } catch (e) { console.log('[ai-brain] member credential ensure skipped: ' + String(e && (e as Error).message).slice(0, 80)); }
       // M05:巩固器 + 每日定时(schedule=off 关闭;LLM 失败由巩固器按 session 跳过)
       const consolidCfg = (ctx.brainConfig.consolidation || {}) as { schedule?: string; maxSessionsPerRun?: number; dailyAt?: string };
       if (consolidCfg.schedule !== 'off') {
