@@ -19,7 +19,7 @@
 
 - 用户说 **"查找记忆"** 或 **"查找记忆 <关键词>"**:立即调 `memory.search`(带 `_brainToken` 参数),逐条列出标题、正文、id、来源;不打断,列完即止。
 - 用户说 **"记忆体检"**:立即调 `memory.whoami` + `memory.stats`(带 `_brainToken` 参数),一段话汇报:当前身份、L1/L2/L3 计数、近 7 天检索与命中、上次巩固 run、needs_review 条数。
-- 用户说 **"登记记忆"**:检查本目录 `.brain.json`;若已存在,运行 `node H:/ai_works/SimpleAIBrain/scripts/enroll.mjs` 打印现状;若不存在,同命令执行登记(幂等,自动铸造 token)。完成后提示用户"新工作区先获取记忆验证一次"。
+- 用户说 **"登记记忆"**:检查本目录 `.brain.json`;若已存在,运行 `node scripts/enroll.mjs`(在 SimpleAIBrain 仓库根执行;其他机器以部署约定定位仓库:与 SimpleMcpServer 同根兄弟目录,或环境变量 SIMPLEAIBRAIN_HOME) 打印现状;若不存在,同命令执行登记(幂等,自动铸造 token)。完成后提示用户"新工作区先获取记忆验证一次"。
 
 > 用户指令全表见 `docs/用户指令.md`(含注意事项与内置自动化说明)。
 

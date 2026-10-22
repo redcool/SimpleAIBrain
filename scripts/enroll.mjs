@@ -37,6 +37,15 @@ function defaultDataDir() {
   return 'H:/ai_works/SimpleMcpServer/data';
 }
 const dataDir = path.resolve(flags['data-dir'] || process.env.DSH_BRAIN_DATA || defaultDataDir());
+function hubPort() {
+  try {
+    const hubCfg = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'SimpleMcpServer', 'config.json');
+    const c = JSON.parse(fs2.readFileSync(hubCfg, 'utf8'));
+    if (c && (c.port || c.serverPort)) return Number(c.port || c.serverPort);
+  } catch { /* 探测失败用默认 */ }
+  return 45678;
+}
+const PORT = hubPort();
 const bjPath = path.join(ws, '.brain.json');
 
 let existing = null;
@@ -68,8 +77,8 @@ try { agents = await fs.readFile(agentsPath, 'utf8'); } catch { /* 新建 */ }
 if (agents.includes(MARKER)) {
   console.log('[enroll] AGENTS.md already has a memory section; left untouched.');
 } else {
-  const section = ['', '## 记忆系统使用(由 enroll.mjs 生成,0.0.13.11)', '> 开始任务前:读本目录 `.brain.json` 取 token → 调用 hub(127.0.0.1:45678)的 `memory.context`,**token 作为工具参数 `_brainToken` 传入**(不是 HTTP Bearer 头)。可先 `memory.whoami` 验证身份。不带 token = 访客,只看 studio 作用域,0 命中不代表没记忆。', '> 会话结束(或用户说"存储记忆"):调 `memory.submit_session`,`session_id`=当前会话 id,`kind`="digest",`content`=本会话关键决定与新知识(400-1200 字,带出处,不含密钥)。', '> 用户口令全表(存储记忆/获取记忆/查找记忆/记忆体检/登记记忆):H:/ai_works/SimpleAIBrain/docs/用户指令.md。', '> 不要直接读记忆库数据文件当记忆来源——只有走工具才有正确的可见性与脱敏。',
-'> 记忆之门 = hub(SimpleMcpServer,127.0.0.1:45678)。调用 memory.* 报 ECONNREFUSED/fetch failed = 门没开:向用户报告,由用户在**可见 cmd 窗口**启动 hub(启动与核对方法见 H:/ai_works/SimpleAIBrain/docs/用户指令.md「记忆之门」节);agent 不应私自后台拉起 hub。', ''].join('\n');
+  const section = ['', '## 记忆系统使用(由 enroll.mjs 生成,0.0.16.13)', '> 开始任务前:读本目录 `.brain.json` 取 token → 调用 hub(默认 127.0.0.1:45678,以部署实际为准)的 `memory.context`,**token 作为工具参数 `_brainToken` 传入**(不是 HTTP Bearer 头)。可先 `memory.whoami` 验证身份。不带 token = 访客,只看 studio 作用域,0 命中不代表没记忆。', '> 会话结束(或用户说"存储记忆"):调 `memory.submit_session`,`session_id`=当前会话 id,`kind`="digest",`content`=本会话关键决定与新知识(400-1200 字,带出处,不含密钥)。', '> 用户口令全表(存储记忆/获取记忆/查找记忆/记忆体检/登记记忆):<SimpleAIBrain>/docs/用户指令.md(部署约定:SimpleAIBrain 与 SimpleMcpServer 为同根兄弟目录;或设环境变量 SIMPLEAIBRAIN_HOME 指向 SimpleAIBrain 仓库)。', '> 不要直接读记忆库数据文件当记忆来源——只有走工具才有正确的可见性与脱敏。',
+'> 记忆之门 = hub(SimpleMcpServer,127.0.0.1:45678)。调用 memory.* 报 ECONNREFUSED/fetch failed = 门没开:向用户报告,由用户在**可见 cmd 窗口**启动 hub(启动与核对方法见 <SimpleAIBrain>/docs/用户指令.md(部署约定:SimpleAIBrain 与 SimpleMcpServer 为同根兄弟目录;或设环境变量 SIMPLEAIBRAIN_HOME 指向 SimpleAIBrain 仓库)「记忆之门」节);agent 不应私自后台拉起 hub。', ''].join('\n');
   await fs.writeFile(agentsPath, agents + section, 'utf8');
   console.log('[enroll] wrote memory guide section into ' + agentsPath + (agents ? ' (appended)' : ' (created)'));
 }
@@ -77,13 +86,13 @@ if (agents.includes(MARKER)) {
 // M11 补充(0.0.16.11):记忆之门健康检查——在线则验证身份,离线则给启动指引(不代为启动)
 async function hubCheck(token) {
   try {
-    const r = await fetch('http://127.0.0.1:45678/rpc', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'memory.whoami', arguments: { _brainToken: token } } }), signal: AbortSignal.timeout(3000) });
+    const r = await fetch('http://127.0.0.1:' + PORT + '/rpc', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'memory.whoami', arguments: { _brainToken: token } } }), signal: AbortSignal.timeout(3000) });
     const j = await r.json();
     const txt = j && j.result && Array.isArray(j.result.content) ? String(j.result.content[0].text) : '';
     console.log('[enroll] hub: ONLINE (127.0.0.1:45678) — ' + (txt ? txt.replace(/\s+/g, ' ').slice(0, 120) : 'whoami ok'));
   } catch {
-    console.log('[enroll] hub: OFFLINE — 记忆之门未启动(127.0.0.1:45678 无响应)。');
-    console.log('[enroll]   启动方法:在可见 cmd 窗口运行 hub 启动命令(SimpleMcpServer),核对 banner 时间戳;详见 H:/ai_works/SimpleAIBrain/docs/用户指令.md「记忆之门」节。');
+    console.log('[enroll] hub: OFFLINE — 记忆之门未启动(' + PORT + ' 无响应)。');
+    console.log('[enroll]   启动方法:在可见 cmd 窗口运行 hub 启动命令(SimpleMcpServer),核对 banner 时间戳;详见 <SimpleAIBrain>/docs/用户指令.md(部署约定:SimpleAIBrain 与 SimpleMcpServer 为同根兄弟目录;或设环境变量 SIMPLEAIBRAIN_HOME 指向 SimpleAIBrain 仓库)「记忆之门」节。');
     console.log('[enroll]   .brain.json 已就绪,hub 启动后即可用;enroll 不代为启动(可见窗口纪律)。');
   }
 }
