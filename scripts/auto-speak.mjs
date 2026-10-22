@@ -85,7 +85,7 @@ function judgeLog(entry) {
   fs.appendFileSync(f, entry + '\n');
 }
 async function judgeRun(judge, round, executorTail) {
-  const promptText = '你是审核判官。审核执行者的一轮工作。\n【用户需求】' + taskText + '\n【执行者本轮输出】' + (executorTail.slice(0, 1500) || '(无文字输出)') + '\n【执行者收到的记忆速览(其引用速览内容不算编造)】' + (memBlockForJudge ? memBlockForJudge.slice(0, 500) : '(无)') + '\n【规则】若需求已达成→pass;未达成但可自动纠正→fix(给出定向纠正提示);需要用户决策或你在两次纠正后仍不达标→escalate。\n只输出一行 JSON,不要其他文字:{"verdict":"pass|fix|escalate","reason":"一句话理由","nudge":"fix 时给执行者的一句话定向提示,否则留空"}';
+  const promptText = '你是审核判官。审核执行者的一轮工作。\n【用户需求】' + taskText + '\n【执行者本轮输出】' + (executorTail.slice(0, 1500) || '(无文字输出)') + '\n【执行者收到的记忆速览(其引用速览内容不算编造)】' + (memBlockForJudge ? memBlockForJudge.slice(0, 500) : '(无)') + '\n【核验要求】你必须亲自用文件工具查看工作区内的实际产出文件并对照需求核验;执行者的自述不作为证据。\n【规则】若需求已达成→pass;未达成但可自动纠正→fix(给出定向纠正提示);需要用户决策或你在两次纠正后仍不达标→escalate。\n只输出一行 JSON,不要其他文字:{"verdict":"pass|fix|escalate","reason":"一句话理由","nudge":"fix 时给执行者的一句话定向提示,否则留空"}';
   let raw = '';
   try {
     const r = await judge.prompt(promptText);
@@ -93,7 +93,8 @@ async function judgeRun(judge, round, executorTail) {
   } catch (e) { return { verdict: 'escalate', reason: 'judge-failed: ' + e.message.slice(0, 80), nudge: '' }; }
   const m = raw.match(/\{[\s\S]*\}/);
   if (!m) {
-    const vm = raw.match(/"verdict"\s*:\s*"(pass|fix|escalate)"/);
+    const vmList = [...raw.matchAll(/"verdict"\s*:\s*"(pass|fix|escalate)"/g)];
+const vm = vmList.length ? vmList[vmList.length - 1] : null;
     if (vm) return { verdict: vm[1], reason: 'lenient-parse: ' + raw.slice(0, 80), nudge: '' };
     return { verdict: 'escalate', reason: 'judge-unparseable: ' + raw.slice(0, 80), nudge: '' };
   }
