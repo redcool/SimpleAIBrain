@@ -9,7 +9,7 @@ const [,, workspace, taskText, budgetArg, idleArg] = process.argv;
 if (!workspace || !taskText) { console.error('usage: auto-speak <workspaceDir> <taskText> [budget=5] [idleMs=10000]'); process.exit(2); }
 const BUDGET = Math.max(1, Number(budgetArg) || 5);
 const IDLE_MS = Math.max(0, Number(idleArg) ?? 10000);
-const PROMPT_TIMEOUT_MS = 10 * 60 * 1000;
+const PROMPT_TIMEOUT_MS = 25 * 60 * 1000;
 const JUDGE_TIMEOUT_MS = 180 * 1000;
 const TOTAL_BUDGET_MS = 30 * 60 * 1000;
 const DSH_BIN = 'H:/AI/dsh/node_modules/@deepseek-ai/dsh/lib/bin.js';
