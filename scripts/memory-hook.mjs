@@ -9,14 +9,16 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 
 const HUB = process.env.SIMPLEBRAIN_HUB_URL || 'http://127.0.0.1:45678';
-const STATE_DIR = 'H:/ai_works/SimpleAIBrain/data/hook-state';
+// 0.0.16.19:DSH 钩子沙箱只保证 temp 可写(H:/ai_works 落盘全部静默失败,导致节流状态恒空→新会话双注入)。
+// 状态/trace 主存 os.tmpdir(),旧目录降级为后备(读写都先 tmp 后 legacy)。
+import os from 'node:os';
+const STATE_DIR_TMP = path.join(os.tmpdir(), 'simple-brain-hook');
+const STATE_DIR_LEGACY = 'H:/ai_works/SimpleAIBrain/data/hook-state';
 const PROMPT_THROTTLE_MS = 20 * 60 * 1000; // UserPromptSubmit 两次注入最小间隔
 const FALLBACK_QUERY = '核心规则 决策 进度';
-import os from 'node:os';
-const TRACE = 'H:/ai_works/SimpleAIBrain/data/hook-state/trace.log';
-const TRACE2 = path.join(os.tmpdir(), 'dsh-hook-trace.log');
-function trace(o) { const line = JSON.stringify(Object.assign({ t: new Date().toISOString(), v: process.version, cwd0: process.cwd(), exec: process.execPath }, o)) + '\n'; try { fs.appendFileSync(TRACE2, line); } catch {} try { fs.mkdirSync(path.dirname(TRACE), { recursive: true }); fs.appendFileSync(TRACE, line); } catch {} }
-const die = (why) => { const info = 'MEMORY-HOOK-DIE why=' + why + ' | cwd0=' + process.cwd() + ' | evtKeys=' + JSON.stringify(typeof evt !== 'undefined' ? Object.keys(evt || {}) : null) + ' | evtCwd=' + (typeof evt !== 'undefined' ? evt.cwd : null) + ' | bjExists=' + (typeof bjPath !== 'undefined' ? fs.existsSync(bjPath) : '?') + ' | v=' + process.version; try { process.stderr.write(info + '\n'); } catch {} trace({ why }); try { if (fs.existsSync('H:/ai_works/SimpleAIBrain/tmp/hook-debug.flag')) { const evName2 = (typeof evt !== 'undefined' && evt.hook_event_name) || 'UserPromptSubmit'; process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: evName2, additionalContext: info } }) + '\n'); } } catch {} process.exit(0); };
+const TRACE = path.join(STATE_DIR_TMP, 'trace.log');
+function trace(o) { const line = JSON.stringify(Object.assign({ t: new Date().toISOString(), v: process.version }, o)) + '\n'; try { fs.mkdirSync(STATE_DIR_TMP, { recursive: true }); fs.appendFileSync(TRACE, line); } catch {} }
+const die = (why) => { const info = 'MEMORY-HOOK-DIE why=' + why + ' | cwd0=' + process.cwd() + ' | v=' + process.version; try { process.stderr.write(info + '\n'); } catch {} trace({ why }); try { if (fs.existsSync('H:/ai_works/SimpleAIBrain/tmp/hook-debug.flag')) { const evName2 = (typeof evt !== 'undefined' && evt.hook_event_name) || 'UserPromptSubmit'; process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: evName2, additionalContext: info } }) + '\n'); } } catch {} process.exit(0); };
 
 function readStdin() {
   return new Promise((resolve) => {
@@ -29,7 +31,7 @@ function readStdin() {
   });
 }
 
-function boot() { const line = new Date().toISOString() + ' | ' + process.version + ' | ' + process.execPath + ' | argv=' + JSON.stringify(process.argv.slice(1)); try { fs.appendFileSync(path.join(os.tmpdir(), 'dsh-hook-boot.log'), line + '\n'); } catch {} try { fs.appendFileSync('H:/ai_works/SimpleAIBrain/data/hook-state/boot.log', line + '\n'); } catch {} }
+function boot() { const line = new Date().toISOString() + ' | ' + process.version + ' | ' + JSON.stringify(process.argv.slice(1)); trace({ step: 'boot', argv: JSON.stringify(process.argv.slice(1)).slice(0, 120) }); try { fs.mkdirSync(STATE_DIR_TMP, { recursive: true }); fs.appendFileSync(path.join(STATE_DIR_TMP, 'boot.log'), line + '\n'); } catch {} }
 boot();
 
 async function main() {
@@ -46,11 +48,13 @@ async function main() {
   if (!bj || !bj.token) die('no-token');
   // 节流:SessionStart 恒注入并重置计时;UserPromptSubmit 间隔内跳过
   const sid = String(evt.session_id || cwd);
-  const stateFile = path.join(STATE_DIR, crypto.createHash('sha1').update(sid).digest('hex').slice(0, 16) + '.json');
+  const stateName = crypto.createHash('sha1').update(sid).digest('hex').slice(0, 16) + '.json';
+  const stateFile = path.join(STATE_DIR_TMP, stateName);
+  const stateFileLegacy = path.join(STATE_DIR_LEGACY, stateName);
   let st = null;
+  try { st = JSON.parse(fs.readFileSync(stateFile, 'utf8')); } catch { try { st = JSON.parse(fs.readFileSync(stateFileLegacy, 'utf8')); } catch { st = null; } }
   let pilotMode = false;
   try {
-    st = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
     if (eventName !== 'SessionStart' && process.env.SIMPLEBRAIN_HOOK_NO_THROTTLE !== '1') {
       if (st.lastHash) { if (Date.now() - (st.lastInject || 0) < 10 * 60 * 1000) { if (Date.now() - (st.lastFull || 0) > 30 * 60 * 1000) { pilotMode = true; } else { die('rate-limited'); } } } else if (Date.now() - (st.lastInject || 0) < PROMPT_THROTTLE_MS) die('throttled');
     }
@@ -87,10 +91,8 @@ async function main() {
     }
   }
   trace({ step: 'inject', chars: payload.length });
-  try {
-    fs.mkdirSync(STATE_DIR, { recursive: true });
-    fs.writeFileSync(stateFile, JSON.stringify({ lastInject: Date.now(), lastFull: pilotMode ? (st && st.lastFull || 0) : Date.now(), lastHash: hash, pilot: pilotMode, event: eventName, query: query.slice(0, 80) }) + '\n');
-  } catch { /* 状态失败不影响注入 */ }
+  const stateBody = JSON.stringify({ lastInject: Date.now(), lastFull: pilotMode ? (st && st.lastFull || 0) : Date.now(), lastHash: hash, pilot: pilotMode, event: eventName, query: query.slice(0, 80) }) + '\n';
+  try { fs.mkdirSync(STATE_DIR_TMP, { recursive: true }); fs.writeFileSync(stateFile, stateBody); } catch { try { fs.mkdirSync(STATE_DIR_LEGACY, { recursive: true }); fs.writeFileSync(stateFileLegacy, stateBody); } catch {} }
   const evName = (typeof evt !== 'undefined' && evt.hook_event_name) || 'UserPromptSubmit';
   payload += '\n[记忆提示] 细节不足,或提及「之前/上次/约定」而无法解析时:先 memory.search 查证再答,禁止编造。';
   const structured = JSON.stringify({ hookSpecificOutput: { hookEventName: evName, additionalContext: payload } });

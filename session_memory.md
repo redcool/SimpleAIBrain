@@ -159,3 +159,9 @@ SimpleAIBrain = simpleMCPServer 的记忆插件包(进程内插件,由 ai_brain_
 - 【决定】主设计文档顶部状态改为"v1 完工";修复 M06 状态行断表;package.json 版本同步 0.0.16.18(w 位此前从未写入,与提交标签脱节)。
 - 【证据】npm test 104/104 ×2(提交前双重确认)。
 - 【补充】版本同步实为三处联动:package.json + src/index.ts VERSION + 提交标签(存在 drift guard 测试)。观察:m08 review_list 测试在全量并发下偶发时序抖动(单文件 ×3 稳定),记录待查。
+
+### 0.0.16.19 读侧钩子双注入修复(2026-10-24)
+- 【现象】新开会话出现两次记忆上下文注入;recall-log 铁证:SessionStart 与 3 秒后的 UserPromptSubmit 各调一次 memory.context(q 均为 fallback),节流未生效。
+- 【根因】DSH 钩子沙箱中 H:/ai_works 落盘全部静默失败(trace/boot/state 自 10-20 注册日起零写入),节流状态恒空 → st=null 走"无状态"路径 → 双发。钩子环境唯一保证可写的是 temp(runner --temp)。
+- 【修复】memory-hook.mjs 状态/trace/boot 主存 os.tmpdir()/simple-brain-hook/,旧目录降级后备;die() 移除未定义引用。注册点:DSH_HOME=D:/Users/Admin/.dsh,注入经 cordis.patch.yml → hooks-claude-code → config/hooks.json(SessionStart+UserPromptSubmit 双挂 scripts/memory-hook.mjs)。
+- 【验证】同 session 模拟开场:SessionStart 注入 ✓,3s 后 UserPromptSubmit rate-limited ✓(stdout 空);npm test 104/104 ×2。
