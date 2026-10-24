@@ -1,6 +1,6 @@
 # SimpleAIBrain 记忆系统 · 主设计文档
 
-> 状态:**实现中**——M01~M08 已实跑贯通(主表见下,含实测数据);M09 联邦待 L2→L3 实测与恢复演练通过后启动
+> 状态:**v1 完工**——M01~M11 实现与测试全绿(全套 104/104);M09 Tier 1 公共记忆已落地(0.0.15.0),Tier 2+ 联邦发布流属 v2(见 §4/§5)
 > 定稿:2026-10-14 · 由八轮设计讨论收敛而成,讨论中提出的验证点均已闭环(见 M06 集成矩阵)
 > 仓库:SimpleAIBrain(独立插件包) · 宿主:SimpleMcpServer · 遵守 SimpleMcpServer《Agent工作纪律》
 
@@ -74,7 +74,7 @@ R < 地板值 → status = archived       可逆,显式搜索可命中
 | [M03 记忆模型](modules/03-memory-model.md) | ✅ 定稿 | 分层、存活评分、升层证据、冲突消解;**0.0.13.9 修稳定性默认值(分层小时半衰期)** | ✅ 0.0.13.9 | ✅ 90/90(全套) |
 | [M04 检索与注入](modules/04-retrieval.md) | ✅ 定稿 | 打分扇出、预算组装、检索即复习 | ✅ 0.0.6.0 | ✅ 40/40 |
 | [M05 巩固](modules/05-consolidation.md) | ✅ 定稿 | 定时摘要/升层/矛盾消解,幂等可续跑;**首跑打磨:LLM 标题 + importance 标尺 + JSON 修复** | ✅ 0.0.13.5 | ✅ 89/89 |
-| [M06 会话摄入](modules/06-ingestion.md) | ✅ 定稿 | hook 便签→POST→spool→watcher;被动流水;脱敏;**opt-in 登记 + ignore_session_prefix + DSH 零补丁通道 + 撤回** | ✅ 0.0.13.0 | ✅ 86/86 | ;**0.0.14 L0 自动摘要已实现(默认开,0.0.14.1)** | ✅ 0.0.14.0 | ✅ 96/96(全套) |
+| [M06 会话摄入](modules/06-ingestion.md) | ✅ 定稿 | hook 便签→POST→spool→watcher;被动流水;脱敏;**opt-in 登记 + ignore_session_prefix + DSH 零补丁通道 + 撤回 + 0.0.14 L0 自动摘要(默认开,0.0.14.1)** | ✅ 0.0.14.0 | ✅ 96/96(全套) |
 | [M07 身份与权限](modules/07-identity.md) | ✅ 定稿 | ID/token 模型、.brain.json、权限闸门 | ✅ 0.0.4.0 | ✅ 27/27 |
 | [M08 工具面](modules/08-tools.md) | ✅ 定稿 | memory.* 工具契约(agent 可见部分) | ✅ 0.0.5.0 | ✅ 34/34 |
 | [M09 部署与联邦](modules/09-federation.md) | ✅ 定稿 | Tier 0-3、读联邦、发布流;**Tier 1 公共记忆已实现(共识上层:agent 提案/member resolve 拍板/edit supersede 取代/studioPrior 1.3)** | 🟨 0.0.15.0(第一刀);Tier 2+ v2 起 | ✅ 101/101(全套) |

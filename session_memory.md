@@ -154,3 +154,8 @@ SimpleAIBrain = simpleMCPServer 的记忆插件包(进程内插件,由 ai_brain_
 - 【现象】run_code 写大文件连续报 ReferenceError(path is not defined)/ "Unterminated template" / "Expected ','"。
 - 【根因】run_code 程序体处在模板串求值环境:内容里的 `${...}` 被当插值求值,裸反引号会提前截断模板。
 - 【修复】run_code 内禁止裸反引号与 `${`;写文件改用"逐行 push + join + node:fs 直写";用 node:fs 直写过的文件,后续 tools.edit 前必须先 tools.read。
+
+### 0.0.16.18 文档状态同步(2026-10-24)
+- 【决定】主设计文档顶部状态改为"v1 完工";修复 M06 状态行断表;package.json 版本同步 0.0.16.18(w 位此前从未写入,与提交标签脱节)。
+- 【证据】npm test 104/104 ×2(提交前双重确认)。
+- 【补充】版本同步实为三处联动:package.json + src/index.ts VERSION + 提交标签(存在 drift guard 测试)。观察:m08 review_list 测试在全量并发下偶发时序抖动(单文件 ×3 稳定),记录待查。
