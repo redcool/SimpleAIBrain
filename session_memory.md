@@ -165,3 +165,8 @@ SimpleAIBrain = simpleMCPServer 的记忆插件包(进程内插件,由 ai_brain_
 - 【根因】DSH 钩子沙箱中 H:/ai_works 落盘全部静默失败(trace/boot/state 自 10-20 注册日起零写入),节流状态恒空 → st=null 走"无状态"路径 → 双发。钩子环境唯一保证可写的是 temp(runner --temp)。
 - 【修复】memory-hook.mjs 状态/trace/boot 主存 os.tmpdir()/simple-brain-hook/,旧目录降级后备;die() 移除未定义引用。注册点:DSH_HOME=D:/Users/Admin/.dsh,注入经 cordis.patch.yml → hooks-claude-code → config/hooks.json(SessionStart+UserPromptSubmit 双挂 scripts/memory-hook.mjs)。
 - 【验证】同 session 模拟开场:SessionStart 注入 ✓,3s 后 UserPromptSubmit rate-limited ✓(stdout 空);npm test 104/104 ×2。
+
+### 0.0.16.20 凭证防呆 + 自主任务上手文档(2026-10-24)
+- 【功能】enroll.mjs 自动把 .brain.json 写入工作区 .gitignore(存在则追加,缺则创建;幂等;两路径都覆盖——已登记重跑也补)。动机:用户提议"不准入 git 的文件直接写进忽略文件,避免用户犯错"。审计发现 SoundGenPrj/ModelTrainPrj .gitignore 均缺该项(已补);SimpleAIBrain 自身安全(git 未追踪 + 已忽略)。
+- 【文档】docs/自主任务上手.md(自主任务/pipeline 三分钟上手:命令、前提、判官/硬闸/断点续跑、plan.json 预置接管拆步、边界);用户指令.md 与 AGENTS.md 登记条目补 gitignore 说明;project-tag-convention.md 示例大小写对齐 SoundGenPrj。
+- 【校验】md-版本对应检查:版本链 0.0.16.20 一致;memory-design.md 顶部状态/M06 行与本版事实一致;hook-state 旧路径在 docs 零引用(0.0.16.19 无残留);convention 文档"v1 条目仍 active"描述经 hub 实查仍准确(style v1、双版词 v1 均 L1 active)。

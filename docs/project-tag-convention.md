@@ -5,8 +5,8 @@
 
 ## 约定
 
-1. **凡在项目工作区存记忆,一律带 project 标签**,值 = 工作区名(如 `soundGenPrj`、`chongear8`、`chuci1`),小写随意但同项目保持一致。
-2. `memory.save` 用法:工具参数加 `project: "soundGenPrj"`(与 `_brainToken` 一样是参数,不是 HTTP 头)。
+1. **凡在项目工作区存记忆,一律带 project 标签**,值 = 工作区名(如 `SoundGenPrj`、`chongear8`、`chuci1`),小写随意但同项目保持一致。
+2. `memory.save` 用法:工具参数加 `project: "SoundGenPrj"`(与 `_brainToken` 一样是参数,不是 HTTP 头)。
 3. 自动会话摘要(memory.submit_session)由 hook 携带工作区 project(若插件支持);不支持时接受无标签,由巩固层按内容归并,但**人工/显式存储必须带标**。
 4. 跨项目通用原则(如 Suno style 规范)才存无标签或 studio 作用域,供全工作室检索。
 
@@ -15,8 +15,8 @@
 ```markdown
 ## 记忆 project 标签(硬性)
 
-- 本工作区所有 memory.save / memory.submit_session 调用,工具参数一律带 `project: "soundGenPrj"`(与 _brainToken 同级参数,非 HTTP 头)。
-- 检索本项目记忆:memory.context / memory.search 带 `project: "soundGenPrj"`。
+- 本工作区所有 memory.save / memory.submit_session 调用,工具参数一律带 `project: "SoundGenPrj"`(与 _brainToken 同级参数,非 HTTP 头)。
+- 检索本项目记忆:memory.context / memory.search 带 `project: "SoundGenPrj"`。
 - 无标签条目无法事后补标(memory.edit 不支持改 project),存错只能重存。
 ```
 

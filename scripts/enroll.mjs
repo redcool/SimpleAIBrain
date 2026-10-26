@@ -50,11 +50,30 @@ function hubPort() {
 const PORT = hubPort();
 const bjPath = path.join(ws, '.brain.json');
 
+// 0.0.16.20:凭证防呆——.brain.json 是身份凭证(等价 apikey),自动写入 .gitignore,杜绝误提交。幂等;失败不阻塞登记。
+async function ensureGitignore() {
+  try {
+    const giPath = path.join(ws, '.gitignore');
+    let gi = '';
+    try { gi = await fs.readFile(giPath, 'utf8'); } catch { /* 新建 */ }
+    if (gi.split(/\r?\n/).some((l) => l.trim() === '.brain.json')) {
+      console.log('[enroll] .gitignore already ignores .brain.json');
+      return;
+    }
+    const add = (gi && !gi.endsWith('\n') ? '\n' : '') + '# SimpleAIBrain 身份凭证,严禁入库(enroll 自动追加)\n.brain.json\n';
+    await fs.writeFile(giPath, gi + add, 'utf8');
+    console.log('[enroll] .gitignore: .brain.json 忽略项已' + (gi ? '追加' : '创建') + ' → ' + giPath);
+  } catch (e) {
+    console.log('[enroll] .gitignore 更新失败(不阻塞登记,请手动忽略 .brain.json): ' + String(e && e.message).slice(0, 80));
+  }
+}
+
 let existing = null;
 try { existing = JSON.parse(await fs.readFile(bjPath, 'utf8')); } catch { /* not enrolled yet */ }
 if (existing && existing.token && !flags.force) {
   console.log('[enroll] already enrolled: ' + [existing.studio, existing.member, existing.agent_label].join('/'));
   console.log('[enroll] identity/token unchanged; use --force to mint a new token (rotate keeps id).');
+  await ensureGitignore();
   await hubCheck(existing.token);
   process.exit(0);
 }
@@ -68,6 +87,7 @@ await fs.writeFile(bjPath, JSON.stringify({ studio: identity.studio, member: ide
 console.log('[enroll] wrote ' + bjPath);
 console.log('[enroll] identity: ' + identityToString(identity));
 console.log('[enroll] token registered at ' + registry.filePath + (existing ? ' (--force: new token minted)' : ''));
+await ensureGitignore();
 console.log('[enroll] keep .brain.json safe: the token is this agent credential (like an apikey).');
 console.log('[enroll] optional workspace policy: "ignore_session_prefix": "no_brain" (sessions titled with this prefix are never ingested).');
 
