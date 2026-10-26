@@ -170,3 +170,9 @@ SimpleAIBrain = simpleMCPServer 的记忆插件包(进程内插件,由 ai_brain_
 - 【功能】enroll.mjs 自动把 .brain.json 写入工作区 .gitignore(存在则追加,缺则创建;幂等;两路径都覆盖——已登记重跑也补)。动机:用户提议"不准入 git 的文件直接写进忽略文件,避免用户犯错"。审计发现 SoundGenPrj/ModelTrainPrj .gitignore 均缺该项(已补);SimpleAIBrain 自身安全(git 未追踪 + 已忽略)。
 - 【文档】docs/自主任务上手.md(自主任务/pipeline 三分钟上手:命令、前提、判官/硬闸/断点续跑、plan.json 预置接管拆步、边界);用户指令.md 与 AGENTS.md 登记条目补 gitignore 说明;project-tag-convention.md 示例大小写对齐 SoundGenPrj。
 - 【校验】md-版本对应检查:版本链 0.0.16.20 一致;memory-design.md 顶部状态/M06 行与本版事实一致;hook-state 旧路径在 docs 零引用(0.0.16.19 无残留);convention 文档"v1 条目仍 active"描述经 hub 实查仍准确(style v1、双版词 v1 均 L1 active)。
+
+### 0.0.16.21 自主任务口令化(2026-10-24,用户提议)
+- 【设计】三口令:开自主任务 "目标" [阶段数 纠偏数] / 自主任务状态 / 停自主任务。与记忆口令同哲学(自然语言触发确定性动作)。
+- 【关键决策】①目标必须带引号,未带引号不成口令(防讨论误触);②启动走 scripts/pipeline-start.mjs 分离进程(detached+unref),会话结束任务继续跑,完成靠既有弹窗——agent 严禁等待/轮询;③单实例守卫(run.pid 存活检测,死 PID 自动清理);④日志落 _pipeline/run-*.log,进度走文件(state.json+判官留痕),不依赖启动会话存活。
+- 【文件】scripts/pipeline-start.mjs(新);AGENTS.md/用户指令.md/自主任务上手.md 三处挂口令。
+- 【验证】dry-run 参数与路径正确;npm test 104/104 ×2。

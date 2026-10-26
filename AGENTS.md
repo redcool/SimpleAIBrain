@@ -20,6 +20,9 @@
 - 用户说 **"查找记忆"** 或 **"查找记忆 <关键词>"**:立即调 `memory.search`(带 `_brainToken` 参数),逐条列出标题、正文、id、来源;不打断,列完即止。
 - 用户说 **"记忆体检"**:立即调 `memory.whoami` + `memory.stats`(带 `_brainToken` 参数),一段话汇报:当前身份、L1/L2/L3 计数、近 7 天检索与命中、上次巩固 run、needs_review 条数。
 - 用户说 **"生成用户身份"**:运行 `node scripts/member-identity.mjs`(幂等),向用户汇报凭证文件位置(member 级,大脑手术专用);若已存在,只报位置不重铸。
+- 用户说 **"开自主任务 \"目标\" [阶段数 纠偏数]"**:在**当前工作区**启动自主任务。运行 `node <SimpleAIBrain>/scripts/pipeline-start.mjs "<目标>" [stages] [budget]`(分离进程,随会话结束继续跑;目标必须带引号,未带引号不成口令——防讨论误触)。启动后立即汇报:目标/阶段数/PID/日志路径/查询与停止方式,**禁止等待或轮询**(完成会弹窗;会话可以照常继续或关闭)。
+- 用户说 **"自主任务状态"**:读 `<工作区>/_pipeline/state.json`(各阶段 status)+ 最新 `run-*.log` 尾 20 行 + 今日 `判官_日期.md` 尾几条,一段话汇报进度;无 state 文件 = 从未运行过。
+- 用户说 **"停自主任务"**:读 `<工作区>/_pipeline/run.pid` 取 PID → `taskkill /F /T /PID <pid>`,确认进程消失后汇报;无 PID 文件 = 没有在跑的任务。
 - 用户说 **"登记记忆"**:检查本目录 `.brain.json`;若已存在,运行 `node scripts/enroll.mjs`(在 SimpleAIBrain 仓库根执行;其他机器以部署约定定位仓库:与 SimpleMcpServer 同根兄弟目录,或环境变量 SIMPLEAIBRAIN_HOME) 打印现状;若不存在,同命令执行登记(幂等,自动铸造 token 并把 .brain.json 写入 .gitignore)。完成后提示用户"新工作区先获取记忆验证一次"。
 
 > 用户指令全表见 `docs/用户指令.md`(含注意事项与内置自动化说明)。
