@@ -83,7 +83,8 @@ const handlers: Record<string, (ctx: ToolCtx, args: Record<string, unknown>) => 
       superseded_by: null,
       source_ids: [],
       tags: tags as string[],
-      project: typeof args.project === 'string' ? args.project : undefined,
+      // 0.0.16.22:save 自动盖 project=agent_label(审计发现标签落地率 0%;显式传参优先,检索仍按显式 project 过滤)
+      project: (typeof args.project === 'string' && args.project.trim()) ? args.project : (identity.agent_label || undefined),
       created_by: createdByOf(identity),
       created_at: now,
       updated_at: now,

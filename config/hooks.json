@@ -21,6 +21,17 @@
           }
         ]
       }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node H:/ai_works/SimpleAIBrain/hooks/brain-hook.mjs",
+            "timeout": 15
+          }
+        ]
+      }
     ]
   }
 }

@@ -176,3 +176,11 @@ SimpleAIBrain = simpleMCPServer 的记忆插件包(进程内插件,由 ai_brain_
 - 【关键决策】①目标必须带引号,未带引号不成口令(防讨论误触);②启动走 scripts/pipeline-start.mjs 分离进程(detached+unref),会话结束任务继续跑,完成靠既有弹窗——agent 严禁等待/轮询;③单实例守卫(run.pid 存活检测,死 PID 自动清理);④日志落 _pipeline/run-*.log,进度走文件(state.json+判官留痕),不依赖启动会话存活。
 - 【文件】scripts/pipeline-start.mjs(新);AGENTS.md/用户指令.md/自主任务上手.md 三处挂口令。
 - 【验证】dry-run 参数与路径正确;npm test 104/104 ×2。
+
+### 0.0.16.22 三周运行审计修复包(2026-11-04,按严重度逐项)
+- 审计勘误:spool 82 个并非积压——data/consolidation-state.json 游标 82/83 已消费(上轮在错误目录找状态文件);真正断点=喂食端 10-23 后停摆(dsh 主程序零实现 SessionEnd,桥亦不支持)。
+- ①【高】memory.save 自动盖 project=agent_label(显式传参优先;检索仍按显式 project 过滤)——标签落地率 0% 的机制性兜底。需 hub 重启生效。
+- ②【高】自动采集复活双轨:hooks.json 挂 SessionEnd→brain-hook(未来即插即用)+ memory-hook 在 UserPromptSubmit 每会话一次顺路 POST /brain/ingest(kind=transcript,fire-and-forget 1.2s;st 空时只写 piggyback 标记不伪造 lastInject,防误杀首prompt节流)。
+- ③【中】蒸馏硬排除:distillPrompt 加"确认性/元叙述内容不得输出为 fact,宁缺毋滥"(L3 噪声根治)。
+- ④【低】registry 清掉空标签身份 s1/local/(热加载生效);遗留 pipeline 身份暂留。
+- ⑤【中】member 手术:review_list 清 needs_review 队列 + forget 4 条 L3 元叙述噪声。

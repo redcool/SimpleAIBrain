@@ -45,6 +45,7 @@ export function mergePrompt(input: { agentId: string; candidates: { idx: number;
 export function distillPrompt(input: { id: string; title: string; body: string }): string {
   return '[任务:蒸馏]\n' +
     '把下面的 L2 条目压缩为原子事实(一句一事,可独立失效),保留可验证细节,去掉修饰。\n' +
+    '硬性排除:确认性/元叙述内容(如"收到""已完成""该条不产生知识增量"这类过程性记录)一律不得输出为 fact;宁缺毋滥。\n' +
     '[' + input.id + '] ' + input.title + ': ' + input.body.slice(0, 800) + '\n' +
     '输出 JSON:{"facts": [{"text": "一句一事,引用 ' + input.id + '", "kind": "fact|decision|preference", "importance": 0-1}]}\n' + COMMON;
 }

@@ -53,6 +53,19 @@ async function main() {
   const stateFileLegacy = path.join(STATE_DIR_LEGACY, stateName);
   let st = null;
   try { st = JSON.parse(fs.readFileSync(stateFile, 'utf8')); } catch { try { st = JSON.parse(fs.readFileSync(stateFileLegacy, 'utf8')); } catch { st = null; } }
+  // 0.0.16.22:transcript 顺路投喂——DSH 暂不支持 SessionEnd(审计②),改在 UserPromptSubmit 每会话一次把 transcript 上交 /brain/ingest,
+  // 让自动采集复活。fire-and-forget(1.2s 超时),不阻塞注入;失败静默,标记未写则下轮再试一次(可接受)。
+  trace({ step: 'tp-check', has: !!(evt && typeof evt.transcript_path === 'string' && evt.transcript_path) });
+  if (eventName === 'UserPromptSubmit' && evt && typeof evt.transcript_path === 'string' && evt.transcript_path && !(st && st.piggyback)) {
+    try {
+      fetch(HUB + '/brain/ingest', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ harness: 'claude-jsonl', session_id: sid, kind: 'transcript', transcript_path: evt.transcript_path }), signal: AbortSignal.timeout(1200) }).then((r) => { trace({ step: 'piggyback', status: r.status }); }).catch(() => {});
+    } catch { /* 静默 */ }
+    try {
+      const merged = Object.assign({}, st || {}, { piggyback: true });   // st 为 null 时不伪造 lastInject,免误杀首prompt节流
+      fs.mkdirSync(STATE_DIR_TMP, { recursive: true });
+      fs.writeFileSync(stateFile, JSON.stringify(merged) + '\n');
+    } catch { try { fs.mkdirSync(STATE_DIR_LEGACY, { recursive: true }); fs.writeFileSync(stateFileLegacy, JSON.stringify(Object.assign({}, st || {}, { piggyback: true })) + '\n'); } catch {} }
+  }
   let pilotMode = false;
   try {
     if (eventName !== 'SessionStart' && process.env.SIMPLEBRAIN_HOOK_NO_THROTTLE !== '1') {

@@ -64,9 +64,10 @@ test('onToolEvent: matched tools logged to L0; memory.* and unmatched excluded',
   plugin.onToolEvent(null);
   await tick();
   const memDir = path.join(dir, 'data', 'memory');
-  const files = await fsp.readdir(path.join(memDir, 'L0-log', '2026-10'));
+  const l0Month = (await fsp.readdir(path.join(memDir, 'L0-log')))[0];   // 0.0.16.22:月份目录按插件真实时钟动态取(原硬编码 2026-10 是跨月日期炸弹)
+  const files = await fsp.readdir(path.join(memDir, 'L0-log', l0Month));
   assert.strictEqual(files.length, 1, 'only matching tool logged');
-  const text = await fsp.readFile(path.join(memDir, 'L0-log', '2026-10', files[0]), 'utf8');
+  const text = await fsp.readFile(path.join(memDir, 'L0-log', l0Month, files[0]), 'utf8');
   assert.ok(text.indexOf('blender.body.build') !== -1);
   assert.strictEqual(text.trim().split('\n').length, 1, 'memory.* and fs.read excluded');
 });
@@ -85,7 +86,7 @@ test('onToolEvent: oversized args truncated; secret keys redacted', async (t) =>
   plugin.onToolEvent({ tool: 'big.op', args: { blob: 'x'.repeat(5000) }, ok: true, ms: 1, transport: 'mcp', identity });
   plugin.onToolEvent({ tool: 'auth.call', args: { token: 'sekret-value', q: 'fine' }, ok: true, ms: 1, transport: 'rpc', identity });
   await tick();
-  const d = path.join(dir, 'data', 'memory', 'L0-log', '2026-10');
+  const d = path.join(dir, 'data', 'memory', 'L0-log', (await fsp.readdir(path.join(dir, 'data', 'memory', 'L0-log')))[0]);
   const files = await fsp.readdir(d);
   const text = await fsp.readFile(path.join(d, files[0]), 'utf8');
   assert.ok(text.indexOf('(truncated)') !== -1, 'truncated marker present');
