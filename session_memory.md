@@ -184,3 +184,8 @@ SimpleAIBrain = simpleMCPServer 的记忆插件包(进程内插件,由 ai_brain_
 - ③【中】蒸馏硬排除:distillPrompt 加"确认性/元叙述内容不得输出为 fact,宁缺毋滥"(L3 噪声根治)。
 - ④【低】registry 清掉空标签身份 s1/local/(热加载生效);遗留 pipeline 身份暂留。
 - ⑤【中】member 手术:review_list 清 needs_review 队列 + forget 4 条 L3 元叙述噪声。
+
+- 【④勘误】"空标签 s1/local/"并非垃圾身份——它是 member 凭证的身份串(member 无 agent 标签);曾误吊销,1 分钟内用 member 原始 token 重算 sha256 恢复(role=member 全工具回归,验证机制:registry 值=sha256(原始token))。registry 实际无垃圾;3 个遗留 pipeline 身份保留无害。教训:revoke 前先 whoami 该 token 认亲。
+
+### 0.0.16.23 search 结果补 project 字段(2026-11-12)
+- 巡检发现 search 结果不含 project 字段,自动打标无法直接验证(绕道 project 过滤才确认);补 1 行。0.0.16.22 修复包实测:自动打标未生效——hub 自 10-23 起未重启(PID 167828 依旧);piggyback 在 DSH 下空转(钩子载荷无 transcript_path,tp-check has=false),喂食实际靠显式 submit_session(8 天 22 条 digest,健康);needs_review 1 条(此生安好 MV 决策)裁定 active。

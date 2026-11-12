@@ -112,7 +112,7 @@ const handlers: Record<string, (ctx: ToolCtx, args: Record<string, unknown>) => 
       query,
       total: ranked.length,
       results: ranked.slice(0, limit).map((r) => ({
-        id: r.entry.id, layer: r.entry.layer, scope: r.entry.scope, status: r.entry.status, title: r.entry.title,
+        id: r.entry.id, layer: r.entry.layer, scope: r.entry.scope, status: r.entry.status, title: r.entry.title, project: r.entry.project || undefined,
         score: Number(r.score.toFixed(4)),
         snippet: r.entry.body.replace(/\s+/g, ' ').trim().slice(0, 160),
         source_ids: r.entry.source_ids,
