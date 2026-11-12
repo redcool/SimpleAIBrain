@@ -189,3 +189,6 @@ SimpleAIBrain = simpleMCPServer 的记忆插件包(进程内插件,由 ai_brain_
 
 ### 0.0.16.23 search 结果补 project 字段(2026-11-12)
 - 巡检发现 search 结果不含 project 字段,自动打标无法直接验证(绕道 project 过滤才确认);补 1 行。0.0.16.22 修复包实测:自动打标未生效——hub 自 10-23 起未重启(PID 167828 依旧);piggyback 在 DSH 下空转(钩子载荷无 transcript_path,tp-check has=false),喂食实际靠显式 submit_session(8 天 22 条 digest,健康);needs_review 1 条(此生安好 MV 决策)裁定 active。
+
+### 0.0.16.24 "备份记忆库"口令(2026-11-12,用户拍板两件套之一)
+- scripts/backup-memory.mjs:data/ 全量快照 → backups/memory-snap-<ts>.zip(tar -a 零引号坑,515 条目实测;retention --keep 缺省 20;幂等不碰 hub)。口令挂 AGENTS.md + docs/用户指令.md;backups/ 走 .git/info/exclude 本地排除。恢复=解压覆盖 data/(先停 hub)。首次快照 2.6MB。
