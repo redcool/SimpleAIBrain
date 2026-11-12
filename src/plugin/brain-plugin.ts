@@ -57,8 +57,9 @@ export function createBrainPlugin(): BrainPlugin {
         if (mc.action !== 'exists') state.ctx && console.log('[ai-brain] member credential ' + mc.action + ': ' + mc.file);
       } catch (e) { console.log('[ai-brain] member credential ensure skipped: ' + String(e && (e as Error).message).slice(0, 80)); }
       // M05:巩固器 + 每日定时(schedule=off 关闭;LLM 失败由巩固器按 session 跳过)
+      const isLocalStore = state.store instanceof FileStore;   // M09:联邦只读模式不跑巩固(写会被拒)
       const consolidCfg = (ctx.brainConfig.consolidation || {}) as { schedule?: string; maxSessionsPerRun?: number; dailyAt?: string };
-      if (consolidCfg.schedule !== 'off') {
+      if (consolidCfg.schedule !== 'off' && isLocalStore) {   // M09:RemoteStore 写会被拒,联邦端不巩固
         state.consolidator = new Consolidator(state.store, {
           dataDir: ctx.dataDir,
           // hub callLLM 契约 = 请求对象 {system?, prompt, context?, messages?}(内部总是把 prompt 作为 user 消息);
@@ -136,7 +137,7 @@ export function createBrainPlugin(): BrainPlugin {
 
     async callTool(name: string, args: Record<string, unknown>, id: Identity | null) {
       if (!state.store) throw new Error('ai-brain not initialized (init() first)');
-      return dispatchCallTool({ identity: id, store: state.store }, name, args ?? {});
+      return dispatchCallTool({ identity: id, store: state.store, dataDir: state.ctx?.dataDir }, name, args ?? {});
     },
 
     onToolEvent(evt: ToolEvent): void {
@@ -185,6 +186,32 @@ export function createBrainPlugin(): BrainPlugin {
       app.addRoute('POST', '/brain/ingest', (body: unknown) => {
         if (!state.ingestWorker) return Promise.resolve({ ok: false, error: 'ingest disabled' });
         return state.ingestWorker.ingestOne(body as Parameters<IngestWorker['ingestOne']>[0]);
+      });
+      // M09 §4:联邦只读查询(Tier 2)。联邦 token 见 brainConfig.federation.tokens;策略=studio-only;未授权→空结果不报错(不泄露存在性)。
+      app.addRoute('POST', '/brain/query', (body: unknown) => {
+        const b = (body || {}) as { query?: string; project?: string; limit?: number; token?: string };
+        const fed = ((state.ctx?.brainConfig?.federation || {}) as { tokens?: string[] }).tokens || [];
+        const sha = (v: string) => crypto.createHash('sha256').update(v).digest('hex');
+        const authorized = typeof b.token === 'string' && b.token.length > 0 && fed.some((t) => sha(t) === sha(b.token as string));
+        if (!authorized) return { results: [], policy: 'denied' };   // 空而非错误(M09 §5 验收 2)
+        const results: Array<{ id: string; layer: number; title: string; body: string; created_by: string; updated_at: string; importance: number }> = [];
+        const tokens = String(b.query || '').toLowerCase().split(/\s+/).filter(Boolean);
+        const rows: Array<{ e: { id: string; layer: number; title: string; body: string; created_by: string; updated_at: string; importance: number; project?: string } }> = [];
+        const store = state.store;
+        if (!store) return { results: [], policy: 'studio-only' };
+        void rows;
+        return (async () => {
+          for await (const e of store.iterateByScope({ includeArchived: false })) {
+            if (e.scope !== 'studio') continue;                       // 服务方策略:默认仅 studio(M09 §3)
+            if (b.project && e.project !== b.project) continue;
+            const hay = (e.title + '\n' + e.body).toLowerCase();
+            if (tokens.length && !tokens.every((t) => hay.includes(t))) continue;
+            results.push({ id: e.id, layer: e.layer, title: e.title, body: String(e.body || '').slice(0, 1200), created_by: e.created_by, updated_at: e.updated_at, importance: e.importance });
+          }
+          results.sort((x, y) => y.importance - x.importance || (y.updated_at < x.updated_at ? -1 : 1));
+          const limit = Math.max(1, Math.min(50, Number(b.limit) || 10));
+          return { results: results.slice(0, limit), policy: 'studio-only' };
+        })();
       });
     },
 

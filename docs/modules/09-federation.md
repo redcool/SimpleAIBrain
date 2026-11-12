@@ -73,3 +73,32 @@ POST /brain/query   (联邦 token)
 ### 5. 四问预答
 
 功能:补齐多成员协作的知识共识通道。方便:开会即入账,一句口令/一次提交。稳健:人拍板、证据保留、不自动 pin、提案权与确认权分离。文档:本节 + 主表 M09 行 + 用户指令表加"共识提案"说明。
+
+---
+
+## 已实现(0.0.17.0):Tier 2 只读联邦 + 发布流(最小闭环)
+
+### 1. 数据所有方(hub1):POST /brain/query
+
+- 配置 `aiBrain.federation.tokens: [联邦token, ...]`(明文存 hub 配置,比对走 SHA-256)。
+- 策略:**studio-only**(`policy:"studio-only"`);未授权返回 `{results:[], policy:"denied"}`——空而非错误,不泄露存在性(§5 验收 2)。
+- query 按 AND 关键词过滤 title+body;按 importance+新近排序;limit 1-50。
+
+### 2. 联邦只读端(hub2):RemoteStore
+
+- 配置 `aiBrain.remote: { url, token }` → 插件以 RemoteStore 替换 FileStore;实现读子集(iterateByScope/scanMeta/readBody),**写操作一律拒绝**并提示发布流(§5 验收 3);巩固调度自动停用(写会被拒)。
+- hub2 的 memory.context/search 因此能看到 hub1 的 studio 条目(§5 验收 1);条目 owner=remote。
+
+### 3. 发布流(§5 验收 4)
+
+- `memory.export`(member 独占):active 条目打包为 `<dataDir>/exports/export-<ts>-<rand>.json`(memory-bundle;可按 scope/project 过滤)。
+- `memory.import`(member 独占):读 bundle → 按 id 与内容指纹去重 → 一律落 **needs_review** + `created_by=import:<来源>`,member 用 `memory.review_list resolve` 逐条确认激活(人工闸;证据链保留)。
+- `memory.search` 结果补 `created_by` 字段(追溯性观测)。
+
+### 4. 验收对照
+
+- [x] §5-1 hub2 读到 hub1 studio 条目(RemoteStore e2e 由 m09-federation.test.cjs 覆盖)
+- [x] §5-2 未授权 → 空 + policy denied
+- [x] §5-3 RemoteStore 写全拒(含 appendLog)
+- [x] §5-4 打包→确认→入库,created_by=import:* 可追溯
+- 未做:联邦授权粒度细化(§6 开放问题,Tier 2 实际多用时再定);PgStore(Tier 3)。

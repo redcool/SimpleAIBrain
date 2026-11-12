@@ -1,4 +1,4 @@
-/** M08 §2:v1 工具全量 = 8,数量红线(每个名称+描述都进 agent 上下文) */
+/** M08 §2:工具全量 = 10,数量红线(0.0.17.0 +export/import 发布流;每个名称+描述都进 agent 上下文) */
 
 const KINDS = ['fact', 'preference', 'event', 'procedure', 'decision'];
 
@@ -104,6 +104,26 @@ export const TOOL_DEFS: ToolDef[] = [
         reason: { type: 'string' },
       },
       required: ['id', 'action'],
+    },
+  },
+  {
+    name: 'memory.export',
+    description: '打包导出记忆条目为 bundle 文件(member 独占;M09 发布流第一步)。缺省全量 active,可按 scope/project 过滤。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        scope: { type: 'string', enum: ['all', 'studio', 'agent', 'member'], description: '缺省 all' },
+        project: { type: 'string', description: '可选,按 project 过滤' },
+      },
+    },
+  },
+  {
+    name: 'memory.import',
+    description: '从 bundle 导入条目,一律落 needs_review 等 member 逐条确认(member 独占;created_by 以 import: 标记可追溯)。',
+    inputSchema: {
+      type: 'object',
+      properties: { path: { type: 'string', description: 'bundle 文件路径' } },
+      required: ['path'],
     },
   },
 ];

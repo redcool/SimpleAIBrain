@@ -34,7 +34,7 @@ test('contract: version 1, name ai-brain, exactly 8 memory.* tools', async (t) =
   assert.strictEqual(plugin.contractVersion, 1);
   assert.strictEqual(plugin.name, 'ai-brain');
   const tools = plugin.getTools();
-  assert.strictEqual(tools.length, 8);
+  assert.strictEqual(tools.length, 10);   // 0.0.17.0 +export/import
   for (const td of tools) {
     assert.ok(td.name.startsWith('memory.'), td.name);
     assert.ok(typeof td.description === 'string' && td.description.length > 0);
@@ -97,7 +97,7 @@ test('onToolEvent: oversized args truncated; secret keys redacted', async (t) =>
 test('registerRoutes: /brain/health reports entries; shutdown flushes reinforcement', async (t) => {
   const { mod, plugin, routes, identity, ctx } = await mk(t);
   plugin.registerRoutes(ctx.httpApp);
-  assert.strictEqual(routes.length, 3, 'health + consolidate (M05) + ingest (M06)');
+  assert.strictEqual(routes.length, 4, 'health + consolidate (M05) + ingest (M06) + federation query (M09)');
   assert.strictEqual(routes[0].p, '/brain/health');
   assert.strictEqual(routes[1].p, '/brain/consolidate');
   assert.strictEqual(routes[2].p, '/brain/ingest');

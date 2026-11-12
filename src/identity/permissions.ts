@@ -6,6 +6,7 @@ export type Role = 'agent' | 'member' | 'guest';
 export const MEMORY_TOOLS = [
   'memory.save', 'memory.search', 'memory.context', 'memory.submit_session',
   'memory.stats', 'memory.whoami', 'memory.review_list', 'memory.edit',
+  'memory.export', 'memory.import',   // 0.0.17.0 M09 发布流(仅 member)
 ] as const;
 
 /**

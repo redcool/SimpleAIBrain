@@ -11,6 +11,9 @@ export interface BrainConfig {
   path?: string;
   passiveLog?: PassiveLogConfig;
   consolidation?: { schedule?: string; maxSessionsPerRun?: number };
+  /** M09 §4:联邦 Tier 2——本机作为数据所有方出 studio 条目;remote 配置则本机成为联邦只读端 */
+  federation?: { tokens?: string[] };
+  remote?: { url: string; token: string };
   ingest?: {
     enabled?: boolean;
     drainIntervalMs?: number;

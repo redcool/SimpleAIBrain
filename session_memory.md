@@ -192,3 +192,7 @@ SimpleAIBrain = simpleMCPServer 的记忆插件包(进程内插件,由 ai_brain_
 
 ### 0.0.16.24 "备份记忆库"口令(2026-11-12,用户拍板两件套之一)
 - scripts/backup-memory.mjs:data/ 全量快照 → backups/memory-snap-<ts>.zip(tar -a 零引号坑,515 条目实测;retention --keep 缺省 20;幂等不碰 hub)。口令挂 AGENTS.md + docs/用户指令.md;backups/ 走 .git/info/exclude 本地排除。恢复=解压覆盖 data/(先停 hub)。首次快照 2.6MB。
+
+### 0.0.17.0 M09 Tier 2 只读联邦 + 发布流(2026-11-12,用户拍板两件套之二)
+- /brain/query(数据所有方;federation.tokens 配置;studio-only;未授权空不报错)+ RemoteStore(remote 配置;写全拒;巩固自动停用)+ memory.export/import(member 独占;导入一律 needs_review + created_by=import:*;内容指纹去重)+ search 结果补 created_by。
+- 测试:m09-federation.test.cjs 3 条(M09 §5 验收 1-4 全覆盖);全套 107/107 ×2。工具红线 8→10。实施教训:插件 callTool 里没有 ctx 变量(用 state.ctx);m09 测试初版忘了手动 registerRoutes;导入分配新 id → 重复导入按内容指纹判 dup 而非 id。

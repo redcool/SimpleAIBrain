@@ -14,6 +14,7 @@ import { atomicWriteFile, ensureDir, exists, nowISO } from '../util/fsutil.js';
 export interface ToolCtx {
   identity: Identity | null;     // null = 只读访客(M07 §3)
   store: MemoryStore;
+  dataDir?: string;              // 0.0.17.0:memory.export 写 bundle 用
 }
 
 export interface ToolResult { content: unknown; isError: boolean; }
@@ -112,7 +113,7 @@ const handlers: Record<string, (ctx: ToolCtx, args: Record<string, unknown>) => 
       query,
       total: ranked.length,
       results: ranked.slice(0, limit).map((r) => ({
-        id: r.entry.id, layer: r.entry.layer, scope: r.entry.scope, status: r.entry.status, title: r.entry.title, project: r.entry.project || undefined,
+        id: r.entry.id, layer: r.entry.layer, scope: r.entry.scope, status: r.entry.status, title: r.entry.title, project: r.entry.project, created_by: r.entry.created_by,   // 0.0.17.0:M09 发布流追溯(created_by=import:*) || undefined,
         score: Number(r.score.toFixed(4)),
         snippet: r.entry.body.replace(/\s+/g, ' ').trim().slice(0, 160),
         source_ids: r.entry.source_ids,
@@ -302,6 +303,66 @@ return out;
       return { id, status: 'superseded', superseded_by: ref };
     }
     fail('memory.edit: action must be edit|pin|unpin|forget|restore|supersede');
+  },
+
+  // 0.0.17.0 M09 发布流第一步:打包(member 独占)。缺省全量 active;可按 scope/project 过滤。
+  'memory.export': async (ctx, args) => {
+    const scope = typeof args.scope === 'string' && ['all', 'studio', 'agent', 'member'].includes(args.scope) ? args.scope : 'all';
+    const project = typeof args.project === 'string' ? args.project : undefined;
+    const entries: Entry[] = [];
+    for await (const e of ctx.store.iterateByScope({ includeArchived: false })) {
+      if (scope !== 'all' && e.scope !== scope) continue;
+      if (project && e.project !== project) continue;
+      entries.push(e);
+    }
+    if (!ctx.dataDir) fail('memory.export: dataDir unavailable');
+    const dir = path.join(ctx.dataDir, 'exports');
+    await ensureDir(dir);
+    const ts = nowISO().replace(/[:.]/g, '-').slice(0, 19);
+    const file = path.join(dir, 'export-' + ts + '-' + crypto.randomBytes(3).toString('hex') + '.json');
+    const bundle = { schema_version: 1, kind: 'memory-bundle', from: ctx.identity ? identityToString(ctx.identity) : 'manual', exported_at: nowISO(), entries };
+    await atomicWriteFile(file, JSON.stringify(bundle, null, 1));
+    const byScope: Record<string, number> = {};
+    for (const e of entries) byScope[e.scope] = (byScope[e.scope] || 0) + 1;
+    return { file, count: entries.length, byScope, note: 'bundle 交对方 member 执行 memory.import;导入一律 needs_review,由对方逐条确认(M09 §3 显式发布流)' };
+  },
+
+  // 0.0.17.0 M09 发布流第二步:导入(member 独占)。一律 needs_review + created_by=import:*,人工闸在 review_list。
+  'memory.import': async (ctx, args) => {
+    const p2 = needStr(args, 'path', 'memory.import');
+    let bundle: { kind?: string; from?: string; entries?: Entry[] };
+    try { bundle = JSON.parse(await fs.readFile(p2, 'utf8')); } catch { fail('memory.import: 无法读取 bundle: ' + p2); }
+    if (!bundle || bundle.kind !== 'memory-bundle' || !Array.isArray(bundle.entries)) fail('memory.import: 不是有效的 memory-bundle 文件');
+    let imported = 0, skipped_exists = 0, skipped_dup = 0;
+    const ids: string[] = [];
+    const fpOf = (t: string, b: string) => crypto.createHash('sha1').update(t + '\n' + b).digest('hex');
+    const existing = new Map<string, string>();   // fp -> title(内容级去重)
+    for await (const cur of ctx.store.iterateByScope({ includeArchived: true })) existing.set(fpOf(cur.title, cur.body), cur.id);
+    for (const raw of bundle.entries) {
+      const e = raw as Entry;
+      if (!e || typeof e.id !== 'string' || !e.id) { skipped_dup++; continue; }
+      if (await pickById(ctx.store, e.id)) { skipped_exists++; continue; }
+      const title = typeof e.title === 'string' && e.title ? e.title : '(无标题)';
+      const body = typeof e.body === 'string' ? e.body : '';
+      if (existing.has(fpOf(title, body))) { skipped_dup++; continue; }
+      const layer = (e.layer === 1 || e.layer === 2 || e.layer === 3) ? e.layer : 1;
+      const scope = (SAVE_SCOPES as readonly string[]).includes(e.scope) ? e.scope : 'member';
+      const id = await ctx.store.upsertEntry({
+        schema_version: 1, id: '', layer, scope: scope as Scope,
+        owner: e.owner && typeof e.owner === 'object' ? e.owner : { member: 'local', agent: '' },
+        title, kind: (KINDS as readonly string[]).includes(e.kind) ? e.kind : 'fact',
+        importance: typeof e.importance === 'number' ? e.importance : 0.5,
+        stability: typeof e.stability === 'number' ? e.stability : defaultStability(layer),
+        access_count: 0, last_access: nowISO(), status: 'needs_review', pinned: false,
+        superseded_by: null, source_ids: Array.isArray(e.source_ids) ? e.source_ids : [], tags: Array.isArray(e.tags) ? e.tags : [],
+        created_by: 'import:' + String(bundle.from || 'remote'),
+        created_at: nowISO(), updated_at: nowISO(),
+        body,
+      });
+      existing.set(fpOf(title, body), id);
+      ids.push(id); imported++;
+    }
+    return { imported, skipped_exists, skipped_dup, ids, note: '导入条目均为 needs_review;member 用 memory.review_list resolve 逐条确认激活(M09 发布流人工闸)' };
   },
 };
 

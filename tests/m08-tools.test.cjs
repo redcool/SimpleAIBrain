@@ -33,7 +33,7 @@ function baseEntry(partial) {
 
 test('descriptions: 8 tools, total chars recorded under cap', async () => {
   const { mod } = await mk(null);
-  assert.strictEqual(mod.TOOL_DEFS.length, 8, 'tool count red line <=8');
+  assert.strictEqual(mod.TOOL_DEFS.length, 10, 'tool count red line <=10 (0.0.17.0 +export/import)');
   const total = mod.totalDescriptionChars();
   console.log('   [baseline] tool description total chars = ' + total);
   assert.ok(total > 0 && total <= 1500, 'baseline ' + total + ' chars; cap 1500');
